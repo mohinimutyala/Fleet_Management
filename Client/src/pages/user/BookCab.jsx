@@ -1,0 +1,364 @@
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import api from '../../api/axios';
+import toast from 'react-hot-toast';
+import Navbar from '../../components/Navbar';
+import Footer from '../../components/Footer';
+import FareCard from '../../components/FareCard';
+import Loader from '../../components/Loader';
+import { MapPin, Calendar, Clock, Car, ChevronDown, Calculator } from 'lucide-react';
+
+// Specific major cities requested
+const SOUTH_INDIA_CITIES = [
+  'Hyderabad',
+  'Vijayawada',
+  'Visakhapatnam',
+  'Rajahmundry',
+  'Tirupati',
+  'Bengaluru',
+  'Chennai',
+  'Mysuru',
+  'Kochi'
+];
+
+const CitySelect = ({ label, id, value, onChange }) => (
+  <div>
+    <label className="input-label">{label}</label>
+    <div className="relative">
+      <select
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="input appearance-none pr-8"
+        style={{ backgroundColor: '#111116', colorScheme: 'dark' }}
+      >
+        <option value="">Select {label} city</option>
+        {SOUTH_INDIA_CITIES.map((city) => (
+          <option key={city} value={city}>{city}</option>
+        ))}
+      </select>
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
+    </div>
+  </div>
+);
+
+const BookCab = () => {
+  const { id: carId } = useParams();
+  const { userInfo } = useAuth();
+  const navigate = useNavigate();
+
+  const [car, setCar] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [fareLoading, setFareLoading] = useState(false);
+  const [fareData, setFareData] = useState(null);
+
+  const [form, setForm] = useState({
+    selectedPickupCity: '',
+    pickupAddress: '',       // specific address within city
+    selectedDropCity: '',
+    dropAddress: '',         // specific address within city
+    pickupdate: '',
+    pickuptime: '',
+    paymentMethod: 'Cash',
+    isScheduled: false,
+  });
+
+  useEffect(() => {
+    const fetchCar = async () => {
+      try {
+        const { data } = await api.get(`/cars/${carId}`);
+        setCar(data);
+      } catch {
+        toast.error('Car not found');
+        navigate('/cabs');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCar();
+  }, [carId]);
+
+  const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
+
+  const handleCalculateFare = async () => {
+    if (!form.selectedPickupCity || !form.selectedDropCity)
+      return toast.error('Please select pickup and drop cities');
+    if (form.selectedPickupCity === form.selectedDropCity)
+      return toast.error('Pickup and drop cities must be different');
+    setFareLoading(true);
+    try {
+      const { data } = await api.post('/bookings/calculate-fare', {
+        pickupCity: form.selectedPickupCity,
+        dropCity: form.selectedDropCity,
+        cartype: car?.cartype,
+      });
+      setFareData(data);
+    } catch {
+      toast.error('Could not calculate fare');
+    } finally {
+      setFareLoading(false);
+    }
+  };
+
+  const handleBookRide = async () => {
+    if (!form.selectedPickupCity || !form.selectedDropCity)
+      return toast.error('Please select pickup and drop cities');
+    if (!form.pickupdate || !form.pickuptime)
+      return toast.error('Please select pickup date and time');
+    if (form.selectedPickupCity === form.selectedDropCity)
+      return toast.error('Pickup and drop cities must be different');
+
+    setSubmitting(true);
+    try {
+      await api.post('/bookings', {
+        selectedPickupState: 'South India',
+        selectedPickupCity: form.selectedPickupCity,
+        selectedDropState: 'South India',
+        selectedDropCity: form.selectedDropCity,
+        pickupAddress: form.pickupAddress,
+        dropAddress: form.dropAddress,
+        pickupdate: form.pickupdate,
+        pickuptime: form.pickuptime,
+        carId,
+        paymentMethod: form.paymentMethod,
+        isScheduled: form.isScheduled,
+        userName: userInfo?.name,
+      });
+      toast.success('✅ Booking submitted! A driver will be assigned by admin shortly.');
+      navigate('/mybookings');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Booking failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) return <div className="page-container"><Navbar /><Loader /></div>;
+
+  return (
+    <div className="page-container">
+      <Navbar />
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <h1 className="section-title">Book Your Ride</h1>
+        <p className="section-subtitle">South India intercity cab booking</p>
+
+        {/* Selected Car */}
+        {car && (
+          <div className="card mb-6 flex items-center gap-4 border-yellow-400/20">
+            <div className="w-14 h-14 bg-yellow-400/10 rounded-xl flex items-center justify-center border border-yellow-400/20">
+              <Car className="w-7 h-7 text-yellow-400" />
+            </div>
+            <div className="flex-1">
+              <p className="font-bold text-white">{car.carname}</p>
+              <p className="text-sm text-white/40">{car.cartype} · ₹{car.price}/km</p>
+            </div>
+            <div className="text-right">
+              <p className="text-xs text-white/30">Reg No</p>
+              <p className="text-sm font-mono text-white/70">{car.carno}</p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* LEFT: Form */}
+          <div className="space-y-5">
+
+            {/* PICKUP */}
+            <div className="card border-yellow-400/10">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2.5 h-2.5 bg-yellow-400 rounded-full ring-4 ring-yellow-400/20" />
+                <h2 className="font-semibold text-white">Pickup Location</h2>
+              </div>
+              <div className="space-y-3">
+                <CitySelect
+                  label="City"
+                  id="pickup-city"
+                  value={form.selectedPickupCity}
+                  onChange={set('selectedPickupCity')}
+                />
+                <div>
+                  <label className="input-label">Pickup Address / Area</label>
+                  <input
+                    id="pickup-address"
+                    type="text"
+                    placeholder="e.g. Indiranagar, MG Road, Airport..."
+                    value={form.pickupAddress}
+                    onChange={(e) => set('pickupAddress')(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* DROP */}
+            <div className="card border-blue-400/10">
+              <div className="flex items-center gap-2 mb-4">
+                <div className="w-2.5 h-2.5 bg-blue-400 rounded-full ring-4 ring-blue-400/20" />
+                <h2 className="font-semibold text-white">Drop Location</h2>
+              </div>
+              <div className="space-y-3">
+                <CitySelect
+                  label="City"
+                  id="drop-city"
+                  value={form.selectedDropCity}
+                  onChange={set('selectedDropCity')}
+                />
+                <div>
+                  <label className="input-label">Drop Address / Area</label>
+                  <input
+                    id="drop-address"
+                    type="text"
+                    placeholder="e.g. Whitefield, Railway Station, Hotel..."
+                    value={form.dropAddress}
+                    onChange={(e) => set('dropAddress')(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* DATE & TIME */}
+            <div className="card">
+              <div className="flex items-center gap-2 mb-4">
+                <Calendar className="w-4 h-4 text-yellow-400" />
+                <h2 className="font-semibold text-white">Pickup Date & Time</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="input-label">Date</label>
+                  <input
+                    id="pickup-date"
+                    type="date"
+                    value={form.pickupdate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => set('pickupdate')(e.target.value)}
+                    className="input"
+                  />
+                </div>
+                <div>
+                  <label className="input-label">Time</label>
+                  <input
+                    id="pickup-time"
+                    type="time"
+                    value={form.pickuptime}
+                    onChange={(e) => set('pickuptime')(e.target.value)}
+                    className="input"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* PAYMENT */}
+            <div>
+              <label className="input-label">Payment Method</label>
+              <div className="flex gap-3">
+                {['Cash', 'Card', 'UPI'].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => set('paymentMethod')(m)}
+                    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
+                      form.paymentMethod === m
+                        ? 'bg-yellow-400 border-yellow-400 text-black'
+                        : 'border-white/10 text-white/50 hover:border-white/20 hover:text-white/80'
+                    }`}
+                    style={{ backgroundColor: form.paymentMethod === m ? '' : '#111116' }}
+                  >
+                    {m}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* SCHEDULED */}
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                form.isScheduled ? 'bg-yellow-400 border-yellow-400' : 'border-white/20 group-hover:border-white/40'
+              }`}
+                onClick={() => set('isScheduled')(!form.isScheduled)}
+              >
+                {form.isScheduled && <span className="text-black text-xs font-black">✓</span>}
+              </div>
+              <span className="text-sm text-white/60 group-hover:text-white/80 transition-colors">
+                This is a scheduled / advance booking
+              </span>
+            </label>
+
+            {/* ACTION BUTTONS */}
+            <div className="flex gap-3">
+              <button
+                id="calculate-fare-btn"
+                onClick={handleCalculateFare}
+                disabled={fareLoading}
+                className="btn-outline flex-1 flex items-center justify-center gap-2"
+              >
+                {fareLoading
+                  ? <div className="w-4 h-4 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
+                  : <Calculator className="w-4 h-4" />}
+                Calculate Fare
+              </button>
+              <button
+                id="book-ride-btn"
+                onClick={handleBookRide}
+                disabled={submitting}
+                className="btn-primary flex-1 flex items-center justify-center gap-2"
+              >
+                {submitting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
+                Book Ride
+              </button>
+            </div>
+          </div>
+
+          {/* RIGHT: Fare Card */}
+          <div>
+            {fareData ? (
+              <FareCard
+                fareData={fareData}
+                pickup={form.pickupAddress ? `${form.pickupAddress}, ${form.selectedPickupCity}` : form.selectedPickupCity}
+                drop={form.dropAddress ? `${form.dropAddress}, ${form.selectedDropCity}` : form.selectedDropCity}
+                cartype={car?.cartype}
+              />
+            ) : (
+              <div className="card border-dashed border-white/10 flex flex-col items-center justify-center min-h-[320px] text-center">
+                <div className="w-16 h-16 rounded-2xl bg-yellow-400/5 border border-yellow-400/10 flex items-center justify-center mb-4">
+                  <Calculator className="w-8 h-8 text-yellow-400/30" />
+                </div>
+                <p className="text-white/50 font-medium mb-1">No fare calculated yet</p>
+                <p className="text-white/25 text-sm">
+                  Select pickup & drop cities,<br />then click <span className="text-yellow-400/50">Calculate Fare</span>
+                </p>
+              </div>
+            )}
+
+            {/* Route summary */}
+            {form.selectedPickupCity && form.selectedDropCity && (
+              <div className="mt-4 card border-white/5 text-sm space-y-2">
+                <p className="text-white/40 text-xs uppercase tracking-wider font-semibold mb-2">Route Summary</p>
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full mt-1.5 shrink-0" />
+                  <div>
+                    <p className="text-white font-medium">{form.selectedPickupCity}</p>
+                    {form.pickupAddress && <p className="text-white/40 text-xs">{form.pickupAddress}</p>}
+                  </div>
+                </div>
+                <div className="ml-1 w-px h-4 bg-white/10" />
+                <div className="flex items-start gap-3">
+                  <div className="w-2 h-2 bg-blue-400 rounded-full mt-1.5 shrink-0" />
+                  <div>
+                    <p className="text-white font-medium">{form.selectedDropCity}</p>
+                    {form.dropAddress && <p className="text-white/40 text-xs">{form.dropAddress}</p>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
+};
+
+export default BookCab;
