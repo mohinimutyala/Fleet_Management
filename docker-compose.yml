@@ -1,0 +1,18 @@
+services:
+  client:
+    build: ./Client
+    container_name: fleet-client
+    ports:
+      - "5173:5173"
+    depends_on:
+      - server
+    environment:
+      - VITE_API_URL=http://localhost:5000
+
+  server:
+    build: ./Server
+    container_name: fleet-server
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./Server/.env
