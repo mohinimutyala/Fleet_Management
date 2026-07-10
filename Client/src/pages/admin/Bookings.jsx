@@ -4,7 +4,7 @@ import Loader from '../../components/Loader';
 import EmptyState from '../../components/EmptyState';
 import api from '../../api/axios';
 import toast from 'react-hot-toast';
-import { BookOpen, CheckCircle, XCircle, UserCheck, ChevronDown } from 'lucide-react';
+import { BookOpen, XCircle, UserCheck, ChevronDown } from 'lucide-react';
 
 const BOOKING_STATUS_BADGE = {
   'Pending': 'badge-pending',
@@ -49,16 +49,6 @@ const Bookings = () => {
     }
   };
 
-  const handleCompleteTrip = async (id) => {
-    if (!window.confirm('Mark this trip as completed?')) return;
-    try {
-      await api.put(`/bookings/${id}/complete-trip`);
-      toast.success('✅ Trip completed! Driver and vehicle freed.');
-      setBookings(prev => prev.map(b => b._id === id ? { ...b, bookingStatus: 'Completed', tripStatus: 'Completed' } : b));
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete trip');
-    }
-  };
 
   const handleCancel = async (id) => {
     if (!window.confirm('Cancel this booking?')) return;
@@ -126,17 +116,30 @@ const Bookings = () => {
                   <span>Driver: <b className="text-white/70">{b.drivername || 'Not Assigned'}</b></span>
                 </div>
 
+                {/* Financial breakdown for completed bookings */}
+                {b.bookingStatus === 'Completed' && (
+                  <div className="mb-3 px-3 py-2 rounded-lg bg-green-400/5 border border-green-400/15 text-xs space-y-0.5">
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Total Fare</span>
+                      <span className="text-white/70 font-medium">₹{b.fare}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Driver Commission (30%)</span>
+                      <span className="text-blue-400 font-medium">₹{b.driverCommission?.toFixed(2) || (parseFloat(b.fare) * 0.3).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-white/40">Platform Revenue (70%)</span>
+                      <span className="text-green-400 font-medium">₹{b.platformRevenue?.toFixed(2) || (parseFloat(b.fare) * 0.7).toFixed(2)}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Actions */}
                 <div className="flex items-center gap-2 flex-wrap">
                   {b.bookingStatus === 'Pending' && (
                     <a href="/admin/pending-bookings" className="btn-primary text-xs py-1.5 px-3 flex items-center gap-1">
                       <UserCheck className="w-3.5 h-3.5" /> Assign Driver
                     </a>
-                  )}
-                  {b.bookingStatus === 'Confirmed' && (
-                    <button onClick={() => handleCompleteTrip(b._id)} className="btn-success text-xs py-1.5 flex items-center gap-1">
-                      <CheckCircle className="w-3.5 h-3.5" /> Complete Trip
-                    </button>
                   )}
                   {(b.bookingStatus === 'Pending' || b.bookingStatus === 'Confirmed') && (
                     <button onClick={() => handleCancel(b._id)} className="btn-danger text-xs py-1.5 flex items-center gap-1">

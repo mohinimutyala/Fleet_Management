@@ -51,10 +51,10 @@ const Analytics = () => {
             {/* KPIs */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                { label: 'Total Revenue', value: `₹${stats?.totalRevenue?.toFixed(0) || 0}`, icon: DollarSign, color: 'text-yellow-400' },
-                { label: 'Total Bookings', value: stats?.bookings, icon: BookOpen, color: 'text-blue-400' },
-                { label: 'Total Cabs', value: stats?.cabs, icon: Car, color: 'text-green-400' },
-                { label: 'Active Drivers', value: stats?.drivers, icon: TrendingUp, color: 'text-purple-400' },
+                { label: 'Gross Revenue (GMV)', value: `₹${stats?.grossRevenue?.toFixed(0) || 0}`, icon: DollarSign, color: 'text-yellow-400' },
+                { label: 'Platform Revenue (70%)', value: `₹${stats?.platformRevenue?.toFixed(0) || 0}`, icon: TrendingUp, color: 'text-green-400' },
+                { label: 'Driver Payout (30%)', value: `₹${stats?.driverPayout?.toFixed(0) || 0}`, icon: TrendingUp, color: 'text-blue-400' },
+                { label: 'Total Bookings', value: stats?.bookings, icon: BookOpen, color: 'text-purple-400' },
               ].map(({ label, value, icon: Icon, color }) => (
                 <div key={label} className="card">
                   <Icon className={`w-5 h-5 ${color} mb-2`} />

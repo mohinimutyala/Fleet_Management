@@ -108,13 +108,13 @@ const getEarnings = async (req, res) => {
     const allCompleted = await Booking.find({ driverId: req.user.id, bookingStatus: 'Completed' })
       .sort({ updatedAt: -1 });
 
-    // Today's completed
+    // Today's completed — use driverCommission (30%), not full fare
     const todayRides = allCompleted.filter(b => new Date(b.updatedAt) >= today);
-    const todayRevenue = todayRides.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
+    const todayRevenue = todayRides.reduce((sum, b) => sum + (b.driverCommission || parseFloat(b.fare) * 0.3 || 0), 0);
 
-    // Monthly completed
+    // Monthly completed — use driverCommission (30%)
     const monthlyRides = allCompleted.filter(b => new Date(b.updatedAt) >= startOfMonth);
-    const monthlyRevenue = monthlyRides.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
+    const monthlyRevenue = monthlyRides.reduce((sum, b) => sum + (b.driverCommission || parseFloat(b.fare) * 0.3 || 0), 0);
 
     const totalRevenue = allCompleted.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
 

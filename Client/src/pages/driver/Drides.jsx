@@ -42,6 +42,16 @@ const Drides = () => {
     }
   };
 
+  const handleCompleteTrip = async (id) => {
+    try {
+      const { data } = await api.put(`/bookings/${id}/complete-trip`);
+      toast.success(`✅ Trip completed! You earned ₹${data.driverCommission?.toFixed(2) || '—'}`);
+      setBookings((prev) => prev.map((b) => b._id === id ? { ...b, tripStatus: 'Completed', bookingStatus: 'Completed' } : b));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to complete trip');
+    }
+  };
+
   const filtered = filter === 'All' ? bookings : bookings.filter((b) => (b.tripStatus || 'Waiting') === filter);
 
   return (
@@ -97,10 +107,9 @@ const Drides = () => {
                     </button>
                   )}
                   {b.tripStatus === 'Started' && (
-                    <div className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-green-400/10 border border-green-400/20 text-green-400 text-xs">
-                      <CheckCircle className="w-3.5 h-3.5" />
-                      Trip in Progress — Admin will complete
-                    </div>
+                    <button onClick={() => handleCompleteTrip(b._id)} className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-green-400/15 border border-green-400/30 text-green-400 text-xs font-semibold hover:bg-green-400/25 transition-all">
+                      <CheckCircle className="w-3.5 h-3.5" /> Complete Trip
+                    </button>
                   )}
                 </div>
               </div>

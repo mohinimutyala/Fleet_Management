@@ -98,39 +98,56 @@ const Ahome = () => {
                 </div>
               </div>
 
-              {/* Revenue Cards */}
+              {/* Revenue Cards — 3-way financial split */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+                {/* Gross Revenue */}
                 <div className="card border-yellow-400/20 bg-yellow-400/3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-yellow-400/10 rounded-xl flex items-center justify-center border border-yellow-400/20">
                       <DollarSign className="w-5 h-5 text-yellow-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-white/40">Total Revenue</p>
-                      <p className="text-2xl font-black text-yellow-400">₹{stats?.totalRevenue?.toFixed(0) || 0}</p>
+                      <p className="text-xs text-white/40">Gross Revenue (GMV)</p>
+                      <p className="text-2xl font-black text-yellow-400">₹{stats?.grossRevenue?.toFixed(0) || 0}</p>
                     </div>
                   </div>
+                  <div className="border-t border-white/5 pt-2 grid grid-cols-2 gap-1 text-xs">
+                    <div><p className="text-white/30">Today</p><p className="text-yellow-400/80 font-semibold">₹{stats?.todayGross?.toFixed(0) || 0}</p></div>
+                    <div><p className="text-white/30">This Month</p><p className="text-yellow-400/80 font-semibold">₹{stats?.monthlyGross?.toFixed(0) || 0}</p></div>
+                  </div>
                 </div>
+
+                {/* Platform Revenue */}
                 <div className="card border-green-400/20 bg-green-400/3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-green-400/10 rounded-xl flex items-center justify-center border border-green-400/20">
                       <Zap className="w-5 h-5 text-green-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-white/40">Today's Revenue</p>
-                      <p className="text-2xl font-black text-green-400">₹{stats?.todayRevenue?.toFixed(0) || 0}</p>
+                      <p className="text-xs text-white/40">Platform Revenue (70%)</p>
+                      <p className="text-2xl font-black text-green-400">₹{stats?.platformRevenue?.toFixed(0) || 0}</p>
                     </div>
                   </div>
+                  <div className="border-t border-white/5 pt-2 grid grid-cols-2 gap-1 text-xs">
+                    <div><p className="text-white/30">Today</p><p className="text-green-400/80 font-semibold">₹{stats?.todayPlatform?.toFixed(0) || 0}</p></div>
+                    <div><p className="text-white/30">This Month</p><p className="text-green-400/80 font-semibold">₹{stats?.monthlyPlatform?.toFixed(0) || 0}</p></div>
+                  </div>
                 </div>
+
+                {/* Driver Payout */}
                 <div className="card border-blue-400/20 bg-blue-400/3">
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <div className="w-10 h-10 bg-blue-400/10 rounded-xl flex items-center justify-center border border-blue-400/20">
                       <TrendingUp className="w-5 h-5 text-blue-400" />
                     </div>
                     <div>
-                      <p className="text-xs text-white/40">Monthly Revenue</p>
-                      <p className="text-2xl font-black text-blue-400">₹{stats?.monthlyRevenue?.toFixed(0) || 0}</p>
+                      <p className="text-xs text-white/40">Driver Payout (30%)</p>
+                      <p className="text-2xl font-black text-blue-400">₹{stats?.driverPayout?.toFixed(0) || 0}</p>
                     </div>
+                  </div>
+                  <div className="border-t border-white/5 pt-2 grid grid-cols-2 gap-1 text-xs">
+                    <div><p className="text-white/30">Today</p><p className="text-blue-400/80 font-semibold">₹{stats?.todayPayout?.toFixed(0) || 0}</p></div>
+                    <div><p className="text-white/30">This Month</p><p className="text-blue-400/80 font-semibold">₹{stats?.monthlyPayout?.toFixed(0) || 0}</p></div>
                   </div>
                 </div>
               </div>

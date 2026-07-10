@@ -69,27 +69,28 @@ const getDashboardStats = async (req, res) => {
       Booking.find({ bookingStatus: 'Completed' }),
     ]);
 
-    // Today's bookings count
     const todayBookingsCount = await Booking.countDocuments({ createdAt: { $gte: today } });
 
-    // Revenue calculations
-    const totalRevenue = completedBookings.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
+    // === Financial Calculations ===
+    // All-time
+    const grossRevenue     = completedBookings.reduce((s, b) => s + (parseFloat(b.fare) || 0), 0);
+    const platformRevenue  = completedBookings.reduce((s, b) => s + (b.platformRevenue || 0), 0);
+    const driverPayout     = completedBookings.reduce((s, b) => s + (b.driverCommission || 0), 0);
 
-    const todayCompleted = await Booking.find({
-      bookingStatus: 'Completed',
-      updatedAt: { $gte: today },
-    });
-    const todayRevenue = todayCompleted.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
+    // Today
+    const todayCompleted = await Booking.find({ bookingStatus: 'Completed', updatedAt: { $gte: today } });
+    const todayGross     = todayCompleted.reduce((s, b) => s + (parseFloat(b.fare) || 0), 0);
+    const todayPlatform  = todayCompleted.reduce((s, b) => s + (b.platformRevenue || 0), 0);
+    const todayPayout    = todayCompleted.reduce((s, b) => s + (b.driverCommission || 0), 0);
 
-    const monthlyCompleted = await Booking.find({
-      bookingStatus: 'Completed',
-      updatedAt: { $gte: startOfMonth },
-    });
-    const monthlyRevenue = monthlyCompleted.reduce((sum, b) => sum + (parseFloat(b.fare) || 0), 0);
+    // This month
+    const monthlyCompleted = await Booking.find({ bookingStatus: 'Completed', updatedAt: { $gte: startOfMonth } });
+    const monthlyGross     = monthlyCompleted.reduce((s, b) => s + (parseFloat(b.fare) || 0), 0);
+    const monthlyPlatform  = monthlyCompleted.reduce((s, b) => s + (b.platformRevenue || 0), 0);
+    const monthlyPayout    = monthlyCompleted.reduce((s, b) => s + (b.driverCommission || 0), 0);
 
     const recentBookings = await Booking.find().sort({ createdAt: -1 }).limit(5);
 
-    // Monthly booking counts for chart
     const monthlyData = await Booking.aggregate([
       { $group: { _id: { $month: '$createdAt' }, count: { $sum: 1 } } },
       { $sort: { '_id': 1 } },
@@ -101,7 +102,14 @@ const getDashboardStats = async (req, res) => {
       availableDrivers, busyDrivers,
       pendingBookings, completedTrips: completedBookings.length,
       todayBookings: todayBookingsCount,
-      totalRevenue, todayRevenue, monthlyRevenue,
+      // Financial breakdown
+      grossRevenue, platformRevenue, driverPayout,
+      todayGross, todayPlatform, todayPayout,
+      monthlyGross, monthlyPlatform, monthlyPayout,
+      // Legacy aliases (keep existing code from breaking)
+      totalRevenue: grossRevenue,
+      todayRevenue: todayGross,
+      monthlyRevenue: monthlyGross,
       recentBookings, monthlyData,
     });
   } catch (err) {

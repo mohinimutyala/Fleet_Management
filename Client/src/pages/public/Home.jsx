@@ -86,17 +86,6 @@ const Home = () => (
           <h2 className="text-3xl font-bold text-white mb-3">Why Choose CabGo?</h2>
           <p className="text-white/40">Built for the modern traveller</p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {FEATURES.map(({ icon: Icon, title, desc }) => (
-            <div key={title} className="card hover:border-yellow-400/20 hover:scale-[1.02] transition-all duration-300">
-              <div className="w-10 h-10 bg-yellow-400/10 rounded-xl flex items-center justify-center mb-4 border border-yellow-400/20">
-                <Icon className="w-5 h-5 text-yellow-400" />
-              </div>
-              <h3 className="font-bold text-white mb-2">{title}</h3>
-              <p className="text-white/40 text-sm leading-relaxed">{desc}</p>
-            </div>
-          ))}
-        </div>
       </div>
     </section>
 

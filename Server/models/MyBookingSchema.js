@@ -13,6 +13,8 @@ const rideSchema = new mongoose.Schema({
   assignedAt: { type: Date, default: null },
   // Fare & vehicle info
   fare: { type: String },
+  driverCommission: { type: Number, default: 0 }, // 30% of fare — stored at completion
+  platformRevenue: { type: Number, default: 0 },  // 70% of fare — stored at completion
   carname: { type: String },
   cartype: { type: String },
   carno: { type: String },

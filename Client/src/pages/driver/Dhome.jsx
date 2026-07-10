@@ -68,6 +68,17 @@ const Dhome = () => {
     }
   };
 
+  const handleCompleteTrip = async (id) => {
+    try {
+      const { data } = await api.put(`/bookings/${id}/complete-trip`);
+      toast.success(`✅ Trip completed! You earned ₹${data.driverCommission?.toFixed(2) || '—'}`);
+      // Remove from active rides list
+      setBookings(prev => prev.filter(b => b._id !== id));
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to complete trip');
+    }
+  };
+
   const statusColor = { Available: 'text-green-400', Busy: 'text-orange-400', Offline: 'text-white/40' };
   const statusBg = { Available: 'bg-green-400/10 border-green-400/20', Busy: 'bg-orange-400/10 border-orange-400/20', Offline: 'bg-white/5 border-white/10' };
   const driverStatus = profile?.status || 'Offline';
@@ -189,10 +200,9 @@ const Dhome = () => {
                         </button>
                       )}
                       {b.tripStatus === 'Started' && (
-                        <div className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-green-400/10 border border-green-400/20 text-green-400 text-sm">
-                          <CheckCircle className="w-4 h-4" />
-                          Trip in Progress — Admin will complete this trip
-                        </div>
+                        <button onClick={() => handleCompleteTrip(b._id)} className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-green-400/15 border border-green-400/30 text-green-400 text-sm font-semibold hover:bg-green-400/25 transition-all">
+                          <CheckCircle className="w-4 h-4" /> Complete Trip
+                        </button>
                       )}
                     </div>
                   </div>

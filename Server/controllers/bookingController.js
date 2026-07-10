@@ -1,8 +1,7 @@
 const Booking = require('../models/MyBookingSchema');
 const Car = require('../models/CarSchema');
 const Driver = require('../models/DriverSchema');
-const { calculateFare } = require('../services/fareService');
-
+const { calculateFare, calculateCommission } = require('../services/fareService');
 // @desc  Create booking (no driver assigned yet — pending admin assignment)
 // @route POST /api/bookings
 const createBooking = async (req, res) => {
@@ -18,7 +17,11 @@ const createBooking = async (req, res) => {
     if (!car) return res.status(404).json({ message: 'Vehicle not found' });
     if (car.vehicleStatus === 'Booked') return res.status(400).json({ message: 'Vehicle is already booked' });
 
-    const fareData = calculateFare(selectedPickupCity, selectedDropCity, car.cartype);
+      const fareData = await calculateFare(
+    selectedPickupCity,
+    selectedDropCity,
+    car.cartype
+);
 
     const booking = await Booking.create({
       selectedPickupCity,
@@ -53,7 +56,11 @@ const calculateFarePreview = async (req, res) => {
     const { pickupCity, dropCity, cartype } = req.body;
     if (!pickupCity || !dropCity || !cartype)
       return res.status(400).json({ message: 'pickupCity, dropCity, cartype are required' });
-    const result = calculateFare(pickupCity, dropCity, cartype);
+    const result = await calculateFare(
+    pickupCity,
+    dropCity,
+    cartype
+);
     res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -180,11 +187,23 @@ const completeTrip = async (req, res) => {
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.bookingStatus === 'Completed')
       return res.status(400).json({ message: 'Trip already completed' });
+    if (booking.tripStatus !== 'Started')
+      return res.status(400).json({ message: 'Trip must be started before completing' });
+
+    // Verify the caller is the assigned driver
+    if (!booking.driverId || booking.driverId.toString() !== req.user.id.toString())
+      return res.status(403).json({ message: 'Only the assigned driver can complete this trip' });
+
+    // Calculate 30/70 commission split (stored permanently)
+    const { driverCommission, platformRevenue } = calculateCommission(booking.fare);
 
     // Update booking
     booking.bookingStatus = 'Completed';
     booking.tripStatus = 'Completed';
     booking.paymentStatus = 'Paid';
+    booking.driverCommission = driverCommission;
+    booking.platformRevenue = platformRevenue;
+    booking.completedAt = new Date();
     await booking.save();
 
     // Free driver
@@ -192,8 +211,8 @@ const completeTrip = async (req, res) => {
       const driver = await Driver.findById(booking.driverId);
       if (driver) {
         driver.status = 'Available';
-        driver.totalRides += 1;
-        driver.totalEarnings += parseFloat(booking.fare) || 0;
+        driver.totalRides = (driver.totalRides || 0) + 1;
+        driver.totalEarnings = (driver.totalEarnings || 0) + driverCommission;
         await driver.save();
       }
     }
@@ -203,7 +222,12 @@ const completeTrip = async (req, res) => {
       await Car.findByIdAndUpdate(booking.carId, { vehicleStatus: 'Available' });
     }
 
-    res.json({ message: 'Trip completed successfully', booking });
+    res.json({
+      message: 'Trip completed successfully',
+      booking,
+      driverCommission,
+      platformRevenue,
+    });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -247,8 +271,10 @@ const startTrip = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
+    if (booking.tripStatus !== 'Assigned')
+      return res.status(400).json({ message: 'Trip must be assigned before starting' });
     booking.tripStatus = 'Started';
-    await booking.save();
+    booking.startedAt = new Date();
     res.json(booking);
   } catch (err) {
     res.status(500).json({ message: err.message });

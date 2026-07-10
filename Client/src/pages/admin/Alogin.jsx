@@ -31,11 +31,13 @@ const Alogin = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#0d0d14] to-[#0a0a0b] flex items-center justify-center px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
+        <Link to="/" className="cursor-pointer">
           <div className="inline-flex items-center justify-center w-14 h-14 bg-yellow-400/10 border border-yellow-400/20 rounded-2xl mb-4">
             <Shield className="w-7 h-7 text-yellow-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">Admin Portal</h1>
-          <p className="text-white/40 text-sm mt-1">Sign in to manage your platform</p>
+        </Link>
+        <p className="text-white/40 text-sm mt-1">Sign in to manage your platform</p>
         </div>
         <div className="card-glass p-8 rounded-2xl">
           <form onSubmit={handleSubmit} className="space-y-5" id="admin-login-form">

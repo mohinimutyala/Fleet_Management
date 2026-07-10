@@ -1,35 +1,22 @@
 // Fare calculation service based on city distance and cab type
-const CITY_DISTANCES = {
-  // Hyderabad pairs
-  'Hyderabad-Vijayawada': 275, 'Hyderabad-Visakhapatnam': 620, 'Hyderabad-Rajahmundry': 430,
-  'Hyderabad-Tirupati': 550, 'Hyderabad-Bengaluru': 570, 'Hyderabad-Chennai': 630,
-  'Hyderabad-Mysuru': 710, 'Hyderabad-Kochi': 1040,
-  
-  // Vijayawada pairs
-  'Vijayawada-Visakhapatnam': 350, 'Vijayawada-Rajahmundry': 160, 'Vijayawada-Tirupati': 415,
-  'Vijayawada-Bengaluru': 640, 'Vijayawada-Chennai': 450, 'Vijayawada-Mysuru': 785,
-  'Vijayawada-Kochi': 1130,
+// Fare calculation service based on city distance and cab type
 
-  // Visakhapatnam pairs
-  'Visakhapatnam-Rajahmundry': 190, 'Visakhapatnam-Tirupati': 740, 'Visakhapatnam-Bengaluru': 1000,
-  'Visakhapatnam-Chennai': 800, 'Visakhapatnam-Mysuru': 1140, 'Visakhapatnam-Kochi': 1470,
+// === COMMISSION CONFIG (single source of truth) ===
+// Change this one value to update the commission split everywhere
+const DRIVER_COMMISSION_RATE = 0.30; // Driver gets 30%, platform keeps 70%
 
-  // Rajahmundry pairs
-  'Rajahmundry-Tirupati': 575, 'Rajahmundry-Bengaluru': 800, 'Rajahmundry-Chennai': 600,
-  'Rajahmundry-Mysuru': 950, 'Rajahmundry-Kochi': 1280,
-
-  // Tirupati pairs
-  'Tirupati-Bengaluru': 250, 'Tirupati-Chennai': 135, 'Tirupati-Mysuru': 395, 'Tirupati-Kochi': 650,
-
-  // Bengaluru pairs
-  'Bengaluru-Chennai': 345, 'Bengaluru-Mysuru': 145, 'Bengaluru-Kochi': 550,
-
-  // Chennai pairs
-  'Chennai-Mysuru': 480, 'Chennai-Kochi': 690,
-
-  // Mysuru pairs
-  'Mysuru-Kochi': 400,
+/**
+ * Calculate driver commission and platform revenue from a fare
+ * @param {number|string} fare - Total booking fare
+ * @returns {{ driverCommission: number, platformRevenue: number }}
+ */
+const calculateCommission = (fare) => {
+  const f = parseFloat(fare) || 0;
+  const driverCommission = parseFloat((f * DRIVER_COMMISSION_RATE).toFixed(2));
+  const platformRevenue = parseFloat((f * (1 - DRIVER_COMMISSION_RATE)).toFixed(2));
+  return { driverCommission, platformRevenue };
 };
+  
 
 const CAB_FARE_PER_KM = {
   'Mini': 8, 'Hatchback': 9, 'Sedan': 12, 'SUV': 15, 'Premium': 18,
@@ -40,19 +27,64 @@ const BASE_FARE = {
   'Mini': 50, 'Hatchback': 50, 'Sedan': 75, 'SUV': 100, 'Premium': 150,
   'Luxury': 250, 'Bike': 20, 'Auto': 30,
 };
+const axios = require("axios");
 
-const getDistance = (fromCity, toCity) => {
-  const key1 = `${fromCity}-${toCity}`;
-  const key2 = `${toCity}-${fromCity}`;
-  return CITY_DISTANCES[key1] || CITY_DISTANCES[key2] || Math.floor(Math.random() * 500) + 50;
-};
+async function getCoordinates(place) {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`;
 
-const calculateFare = (pickupCity, dropCity, cartype) => {
-  const distance = getDistance(pickupCity, dropCity);
-  const perKm = CAB_FARE_PER_KM[cartype] || 10;
-  const base = BASE_FARE[cartype] || 50;
-  const totalFare = base + distance * perKm;
-  return { distance, totalFare, perKm, base };
-};
+    const response = await axios.get(url, {
+        headers: {
+            "User-Agent": "CarGo/1.0"
+        }
+    });
 
-module.exports = { calculateFare, getDistance };
+    if (!response.data.length) {
+        throw new Error(`Location not found: ${place}`);
+    }
+
+    return {
+        lat: response.data[0].lat,
+        lon: response.data[0].lon
+    };
+}
+async function getDistance(fromPlace, toPlace) {
+
+    const from = await getCoordinates(fromPlace);
+
+    const to = await getCoordinates(toPlace);
+
+    const url =
+        `https://router.project-osrm.org/route/v1/driving/` +
+        `${from.lon},${from.lat};${to.lon},${to.lat}` +
+        `?overview=false`;
+
+    const response = await axios.get(url);
+
+    const route = response.data.routes[0];
+
+    return {
+        distance: Math.round(route.distance / 1000),
+        duration: Math.round(route.duration / 60)
+    };
+}
+async function calculateFare(pickup, drop, cartype) {
+
+    const route = await getDistance(pickup, drop);
+
+    const perKm = CAB_FARE_PER_KM[cartype] || 10;
+
+    const base = BASE_FARE[cartype] || 50;
+
+    const totalFare = base + route.distance * perKm;
+
+    return {
+        distance: route.distance,
+        duration: route.duration,
+        totalFare,
+        base,
+        perKm
+    };
+}
+
+
+module.exports = { calculateFare, getDistance, calculateCommission, DRIVER_COMMISSION_RATE };

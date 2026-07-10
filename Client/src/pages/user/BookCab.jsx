@@ -7,41 +7,19 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import FareCard from '../../components/FareCard';
 import Loader from '../../components/Loader';
-import { MapPin, Calendar, Clock, Car, ChevronDown, Calculator } from 'lucide-react';
+import LocationSearch from "../../components/LocationSearch";
+import {
+MapPin,
+Calendar,
+Clock,
+Car,
+Calculator
+} from 'lucide-react';
 
-// Specific major cities requested
-const SOUTH_INDIA_CITIES = [
-  'Hyderabad',
-  'Vijayawada',
-  'Visakhapatnam',
-  'Rajahmundry',
-  'Tirupati',
-  'Bengaluru',
-  'Chennai',
-  'Mysuru',
-  'Kochi'
-];
+// Specific major cities requeste 
 
-const CitySelect = ({ label, id, value, onChange }) => (
-  <div>
-    <label className="input-label">{label}</label>
-    <div className="relative">
-      <select
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="input appearance-none pr-8"
-        style={{ backgroundColor: '#111116', colorScheme: 'dark' }}
-      >
-        <option value="">Select {label} city</option>
-        {SOUTH_INDIA_CITIES.map((city) => (
-          <option key={city} value={city}>{city}</option>
-        ))}
-      </select>
-      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 pointer-events-none" />
-    </div>
-  </div>
-);
+
+      
 
 const BookCab = () => {
   const { id: carId } = useParams();
@@ -172,12 +150,13 @@ const BookCab = () => {
                 <h2 className="font-semibold text-white">Pickup Location</h2>
               </div>
               <div className="space-y-3">
-                <CitySelect
-                  label="City"
-                  id="pickup-city"
-                  value={form.selectedPickupCity}
-                  onChange={set('selectedPickupCity')}
-                />
+                <div>
+                  <LocationSearch
+    label="Pickup Location"
+    value={form.selectedPickupCity}
+    onChange={set("selectedPickupCity")}
+/>
+  
                 <div>
                   <label className="input-label">Pickup Address / Area</label>
                   <input
@@ -193,18 +172,23 @@ const BookCab = () => {
             </div>
 
             {/* DROP */}
-            <div className="card border-blue-400/10">
+            <div className="card border-blue-400/10 relative z-50">
               <div className="flex items-center gap-2 mb-4">
                 <div className="w-2.5 h-2.5 bg-blue-400 rounded-full ring-4 ring-blue-400/20" />
                 <h2 className="font-semibold text-white">Drop Location</h2>
               </div>
               <div className="space-y-3">
-                <CitySelect
-                  label="City"
-                  id="drop-city"
-                  value={form.selectedDropCity}
-                  onChange={set('selectedDropCity')}
-                />
+              <div>
+    <label className="input-label">Drop Location</label>
+
+   <LocationSearch
+    label="Destination"
+    value={form.selectedDropCity}
+    onChange={set("selectedDropCity")}
+/>
+</div>
+</div>
+                
                 <div>
                   <label className="input-label">Drop Address / Area</label>
                   <input
@@ -220,7 +204,7 @@ const BookCab = () => {
             </div>
 
             {/* DATE & TIME */}
-            <div className="card">
+            <div className="card relative z-0">
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-4 h-4 text-yellow-400" />
                 <h2 className="font-semibold text-white">Pickup Date & Time</h2>

@@ -31,10 +31,12 @@ const Dlogin = () => {
     <div className="min-h-screen bg-gradient-to-br from-[#0a0a0b] via-[#0d1014] to-[#0a0a0b] flex items-center justify-center px-4">
       <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-400/10 border border-blue-400/20 rounded-2xl mb-4">
-            <Truck className="w-7 h-7 text-blue-400" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Driver Portal</h1>
+          <Link to="/" className="cursor-pointer">
+            <div className="inline-flex items-center justify-center w-14 h-14 bg-blue-400/10 border border-blue-400/20 rounded-2xl mb-4">
+              <Truck className="w-7 h-7 text-blue-400" />
+            </div>
+            <h1 className="text-2xl font-bold text-white">Driver Portal</h1>
+          </Link>
           <p className="text-white/40 text-sm mt-1">Sign in to start accepting rides</p>
         </div>
         <div className="card-glass p-8 rounded-2xl">

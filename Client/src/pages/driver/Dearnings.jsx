@@ -30,7 +30,7 @@ const Dearnings = () => {
       <main className="flex-1 overflow-y-auto p-6 lg:p-8">
         <div className="mb-6">
           <h1 className="text-2xl font-black text-white">My Earnings</h1>
-          <p className="text-white/40 text-sm mt-1">Revenue calculated from completed trips</p>
+          <p className="text-white/40 text-sm mt-1">Your earnings (30% of each fare)</p>
         </div>
 
         {loading ? <Loader /> : (
@@ -42,7 +42,7 @@ const Dearnings = () => {
                   <div className="w-10 h-10 bg-yellow-400/10 rounded-xl flex items-center justify-center border border-yellow-400/20">
                     <DollarSign className="w-5 h-5 text-yellow-400" />
                   </div>
-                  <p className="text-xs text-white/40">Total Earnings</p>
+                    <p className="text-xs text-white/40">Total Earnings (30%)</p>
                 </div>
                 <p className="text-3xl font-black text-yellow-400">₹{data?.totalEarnings?.toFixed(0) || 0}</p>
                 <p className="text-xs text-white/30 mt-1">{data?.totalRides || 0} completed trips</p>
@@ -52,7 +52,7 @@ const Dearnings = () => {
                   <div className="w-10 h-10 bg-green-400/10 rounded-xl flex items-center justify-center border border-green-400/20">
                     <Zap className="w-5 h-5 text-green-400" />
                   </div>
-                  <p className="text-xs text-white/40">Today's Revenue</p>
+                    <p className="text-xs text-white/40">Today's Earnings (30%)</p>
                 </div>
                 <p className="text-3xl font-black text-green-400">₹{data?.todayRevenue?.toFixed(0) || 0}</p>
                 <p className="text-xs text-white/30 mt-1">{data?.todayRides || 0} trips today</p>
@@ -62,7 +62,7 @@ const Dearnings = () => {
                   <div className="w-10 h-10 bg-blue-400/10 rounded-xl flex items-center justify-center border border-blue-400/20">
                     <TrendingUp className="w-5 h-5 text-blue-400" />
                   </div>
-                  <p className="text-xs text-white/40">This Month</p>
+                    <p className="text-xs text-white/40">This Month (30%)</p>
                 </div>
                 <p className="text-3xl font-black text-blue-400">₹{data?.monthlyRevenue?.toFixed(0) || 0}</p>
                 <p className="text-xs text-white/30 mt-1">{data?.monthlyRides || 0} trips this month</p>
@@ -94,7 +94,10 @@ const Dearnings = () => {
                           <td className="px-3 py-2 text-white/70">{ride.selectedPickupCity} → {ride.selectedDropCity}</td>
                           <td className="px-3 py-2 text-white/50">{ride.userName || '—'}</td>
                           <td className="px-3 py-2 text-white/40">{ride.bookeddate}</td>
-                          <td className="px-3 py-2 text-yellow-400 font-medium text-right">₹{ride.fare}</td>
+                          <td className="px-3 py-2 text-green-400 font-medium text-right">
+                            ₹{ride.driverCommission?.toFixed(2) || (parseFloat(ride.fare) * 0.3).toFixed(2)}
+                            <span className="text-white/20 text-xs ml-1">(30%)</span>
+                          </td>
                         </tr>
                       ))}
                     </tbody>
