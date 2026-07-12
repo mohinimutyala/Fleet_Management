@@ -2,22 +2,36 @@ import axios from 'axios';
 
 const api = axios.create({
   baseURL: '/api',
-  headers: { 'Content-Type': 'application/json' },
+  headers: {
+    'Content-Type': 'application/json',
+  },
 });
 
-// Attach JWT token to every request
+// Attach correct JWT token based on current portal
 api.interceptors.request.use((config) => {
   const userInfo = localStorage.getItem('userInfo');
   const adminInfo = localStorage.getItem('adminInfo');
   const driverInfo = localStorage.getItem('driverInfo');
-  const info = userInfo ? JSON.parse(userInfo) : adminInfo ? JSON.parse(adminInfo) : driverInfo ? JSON.parse(driverInfo) : null;
+
+  let info = null;
+  const path = window.location.pathname;
+
+  if (path.startsWith('/admin')) {
+    info = adminInfo ? JSON.parse(adminInfo) : null;
+  } else if (path.startsWith('/driver')) {
+    info = driverInfo ? JSON.parse(driverInfo) : null;
+  } else {
+    info = userInfo ? JSON.parse(userInfo) : null;
+  }
+
   if (info?.token) {
     config.headers.Authorization = `Bearer ${info.token}`;
   }
+
   return config;
 });
 
-// Handle 401 errors
+// Handle unauthorized responses
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -26,6 +40,7 @@ api.interceptors.response.use(
       localStorage.removeItem('adminInfo');
       localStorage.removeItem('driverInfo');
     }
+
     return Promise.reject(err);
   }
 );
