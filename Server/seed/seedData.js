@@ -75,13 +75,14 @@ const seed = async () => {
 
     // ── Vehicles ──────────────────────────────────────────────────────────────
     const cars = await Car.create([
-      { carname: 'Maruti Swift',   cartype: 'Hatchback', price: '10', carno: 'MH 12 XY 5678', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/hatchback.png' },
-      { carname: 'Honda City',     cartype: 'Sedan',     price: '14', carno: 'KA 05 CD 9013', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/sedan.png' },
-      { carname: 'Toyota Etios',   cartype: 'Sedan',     price: '12', carno: 'RJ 14 QW 3456', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/sedan.png' },
-      { carname: 'Mahindra XUV',   cartype: 'SUV',       price: '18', carno: 'DL 04 AB 7890', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/suv.png' },
-      { carname: 'Ola Electric',   cartype: 'Mini',      price: '7',  carno: 'TN 07 CD 1234', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/mini.png' },
-      { carname: 'Hero Splendor',  cartype: 'Bike',      price: '5',  carno: 'MH 13 XZ 9876', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/bike.png' },
-      { carname: 'BMW 5 Series',   cartype: 'Luxury',    price: '30', carno: 'DL 05 MN 5678', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://localhost:5000/uploads/luxury.png' },
+      
+      { carname: 'Maruti Swift',  cartype: 'Hatchback', price: '10', carno: 'MH 12 XY 5678', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/hatchback.png' },
+      { carname: 'Honda City',    cartype: 'Sedan',     price: '14', carno: 'KA 05 CD 9013', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/sedan.png' },
+      { carname: 'Toyota Etios',  cartype: 'Sedan',     price: '12', carno: 'RJ 14 QW 3456', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/sedan.png' },
+      { carname: 'Mahindra XUV',  cartype: 'SUV',       price: '18', carno: 'DL 04 AB 7890', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/suv.png' },
+      { carname: 'Ola Electric',  cartype: 'Mini',      price: '7',  carno: 'TN 07 CD 1234', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/mini.png' },
+      { carname: 'Hero Splendor', cartype: 'Bike',      price: '5',  carno: 'MH 13 XZ 9876', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/bike.png' },
+      { carname: 'BMW 5 Series',  cartype: 'Luxury',    price: '30', carno: 'DL 05 MN 5678', vehicleStatus: 'Available', isAvailable: true, carImage: 'http://3.27.17.6:5000/uploads/luxury.png' },
     ]);
 
     // ── Compute earnings for each driver from their completed trips ────────────
