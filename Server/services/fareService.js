@@ -1,5 +1,4 @@
 // Fare calculation service based on city distance and cab type
-// Fare calculation service based on city distance and cab type
 
 // === COMMISSION CONFIG (single source of truth) ===
 // Change this one value to update the commission split everywhere
@@ -13,10 +12,9 @@ const DRIVER_COMMISSION_RATE = 0.30; // Driver gets 30%, platform keeps 70%
 const calculateCommission = (fare) => {
   const f = parseFloat(fare) || 0;
   const driverCommission = parseFloat((f * DRIVER_COMMISSION_RATE).toFixed(2));
-  const platformRevenue = parseFloat((f * (1 - DRIVER_COMMISSION_RATE)).toFixed(2));
+  const platformRevenue  = parseFloat((f * (1 - DRIVER_COMMISSION_RATE)).toFixed(2));
   return { driverCommission, platformRevenue };
 };
-  
 
 const CAB_FARE_PER_KM = {
   'Mini': 8, 'Hatchback': 9, 'Sedan': 12, 'SUV': 15, 'Premium': 18,
@@ -27,64 +25,107 @@ const BASE_FARE = {
   'Mini': 50, 'Hatchback': 50, 'Sedan': 75, 'SUV': 100, 'Premium': 150,
   'Luxury': 250, 'Bike': 20, 'Auto': 30,
 };
-const axios = require("axios");
 
+const axios = require('axios');
+
+// Shared axios instance with 10-second timeout to prevent hanging requests
+const geoAxios = axios.create({ timeout: 10000 });
+
+/**
+ * Geocode a place name to lat/lon using Nominatim
+ * @param {string} place
+ * @returns {{ lat: string, lon: string }}
+ */
 async function getCoordinates(place) {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`;
-
-    const response = await axios.get(url, {
-        headers: {
-            "User-Agent": "CarGo/1.0"
-        }
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(place)}&format=json&limit=1`;
+  let response;
+  try {
+    response = await geoAxios.get(url, {
+      headers: { 'User-Agent': 'CarGo/1.0' },
     });
+  } catch (err) {
+    throw new Error(`Geocoding service unavailable for "${place}". Please try again.`);
+  }
 
-    if (!response.data.length) {
-        throw new Error(`Location not found: ${place}`);
-    }
+  if (!response.data || !response.data.length) {
+    throw new Error(`Location not found: "${place}". Please check the city name and try again.`);
+  }
 
-    return {
-        lat: response.data[0].lat,
-        lon: response.data[0].lon
-    };
+  return {
+    lat: response.data[0].lat,
+    lon: response.data[0].lon,
+  };
 }
+
+/**
+ * Get driving distance and duration between two place names using OSRM
+ * @param {string} fromPlace
+ * @param {string} toPlace
+ * @returns {{ distance: number, duration: number }} — km and minutes
+ */
 async function getDistance(fromPlace, toPlace) {
+  const [from, to] = await Promise.all([
+    getCoordinates(fromPlace),
+    getCoordinates(toPlace),
+  ]);
 
-    const from = await getCoordinates(fromPlace);
+  const url =
+    `https://router.project-osrm.org/route/v1/driving/` +
+    `${from.lon},${from.lat};${to.lon},${to.lat}` +
+    `?overview=false`;
 
-    const to = await getCoordinates(toPlace);
+  let response;
+  try {
+    response = await geoAxios.get(url);
+  } catch (err) {
+    throw new Error(`Routing service unavailable. Please try again shortly.`);
+  }
 
-    const url =
-        `https://router.project-osrm.org/route/v1/driving/` +
-        `${from.lon},${from.lat};${to.lon},${to.lat}` +
-        `?overview=false`;
+  if (
+    !response.data ||
+    !response.data.routes ||
+    !response.data.routes.length ||
+    !response.data.routes[0]
+  ) {
+    throw new Error(`No driving route found between "${fromPlace}" and "${toPlace}".`);
+  }
 
-    const response = await axios.get(url);
+  const route = response.data.routes[0];
+  const distanceKm = Math.round(route.distance / 1000);
+  const durationMin = Math.round(route.duration / 60);
 
-    const route = response.data.routes[0];
+  if (distanceKm === 0) {
+    throw new Error(`The calculated distance between "${fromPlace}" and "${toPlace}" is zero. Please verify the locations.`);
+  }
 
-    return {
-        distance: Math.round(route.distance / 1000),
-        duration: Math.round(route.duration / 60)
-    };
+  return {
+    distance: distanceKm,
+    duration: durationMin,
+  };
 }
+
+/**
+ * Calculate full fare breakdown for a booking
+ * @param {string} pickup - Pickup city/location name
+ * @param {string} drop   - Drop city/location name
+ * @param {string} cartype - Vehicle type (Mini, Sedan, SUV, etc.)
+ * @returns {{ distance, duration, totalFare, base, perKm }}
+ */
 async function calculateFare(pickup, drop, cartype) {
+  // This will throw a descriptive error if anything fails — let callers handle it
+  const route = await getDistance(pickup, drop);
 
-    const route = await getDistance(pickup, drop);
+  const perKm  = CAB_FARE_PER_KM[cartype] || 10;
+  const base   = BASE_FARE[cartype] || 50;
+  const totalFare = base + route.distance * perKm;
 
-    const perKm = CAB_FARE_PER_KM[cartype] || 10;
-
-    const base = BASE_FARE[cartype] || 50;
-
-    const totalFare = base + route.distance * perKm;
-
-    return {
-        distance: route.distance,
-        duration: route.duration,
-        totalFare,
-        base,
-        perKm
-    };
+  return {
+    distance: route.distance,
+    duration: route.duration,
+    totalFare,
+    base,
+    perKm,
+  };
 }
 
-
-module.exports = { calculateFare, getDistance, calculateCommission, DRIVER_COMMISSION_RATE };
+module.exports = { calculateFare, getDistance, getCoordinates, calculateCommission, DRIVER_COMMISSION_RATE };

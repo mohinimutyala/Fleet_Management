@@ -216,3 +216,130 @@ input[type="time"]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(0.6);
   cursor: pointer;
 }
+
+/* ===== ERP DASHBOARD TABLES ===== */
+.erp-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.erp-th {
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.4);
+  background: rgba(255,255,255,0.03);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.erp-th.sortable {
+  cursor: pointer;
+}
+
+.erp-th.sortable:hover {
+  color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.06);
+}
+
+.erp-th.text-right,
+.erp-td.text-right {
+  text-align: right;
+}
+
+.erp-td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  color: rgba(255,255,255,0.7);
+  white-space: nowrap;
+}
+
+.erp-tr:hover .erp-td {
+  background: rgba(255,255,255,0.025);
+}
+
+.erp-td.total-row {
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+  background: rgba(255,255,255,0.04);
+}
+
+/* ERP Section Card */
+.erp-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.erp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.erp-card-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.45);
+}
+
+/* Alert rows */
+.alert-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  font-size: 0.78rem;
+  color: rgba(255,215,0,0.85);
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+}
+
+.alert-row:last-child {
+  border-bottom: none;
+}
+
+.alert-row-ok {
+  color: rgba(74,222,128,0.8);
+}
+
+/* Status number pills */
+.num-green  { color: #4ade80; font-weight: 700; }
+.num-blue   { color: #60a5fa; font-weight: 700; }
+.num-orange { color: #fb923c; font-weight: 700; }
+.num-gray   { color: rgba(255,255,255,0.5); font-weight: 600; }
+.num-yellow { color: #facc15; font-weight: 700; }
+.num-red    { color: #f87171; font-weight: 700; }
+
+/* Driver / Vehicle Status badges */
+.badge-available {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-400/15 text-green-400 border border-green-400/25;
+}
+.badge-busy {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-400/15 text-blue-400 border border-blue-400/25;
+}
+.badge-offline {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-500/20 text-gray-400 border border-gray-500/25;
+}
+.badge-maintenance {
+  @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-orange-400/15 text-orange-400 border border-orange-400/25;
+}
+
+/* Date/time validation error */
+.input-error {
+  border-color: rgba(248, 113, 113, 0.5) !important;
+}
+.field-error {
+  font-size: 0.7rem;
+  color: #f87171;
+  margin-top: 4px;
+}

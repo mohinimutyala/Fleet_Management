@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -7,20 +7,43 @@ import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import FareCard from '../../components/FareCard';
 import Loader from '../../components/Loader';
-import LocationSearch from "../../components/LocationSearch";
-import {
-MapPin,
-Calendar,
-Clock,
-Car,
-Calculator
-} from 'lucide-react';
+import LocationSearch from '../../components/LocationSearch';
+import { MapPin, Calendar, Clock, Car, Calculator, AlertCircle } from 'lucide-react';
 
-// Specific major cities requeste 
+// ── Date / time validation helpers ────────────────────────────────────────────
+function getNowIST() {
+  return new Date();
+}
 
+/** Returns today's date string in YYYY-MM-DD (local) */
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
 
-      
+/** Returns current time in HH:MM (local) */
+function nowTimeStr() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
+/**
+ * Validate the selected pickup date + time.
+ * Returns null (valid) or an error string.
+ */
+function validatePickupDateTime(pickupdate, pickuptime) {
+  if (!pickupdate || !pickuptime) return null; // blank is caught separately
+  const combined = new Date(`${pickupdate}T${pickuptime}:00`);
+  if (isNaN(combined.getTime())) return 'Invalid date or time format.';
+  const now = getNowIST();
+  const oneMinuteAgo = new Date(now.getTime() - 60_000); // 1-min grace
+  if (combined < oneMinuteAgo) {
+    return `Pickup time cannot be in the past. Current time is ${nowTimeStr()}.`;
+  }
+  return null;
+}
+
+// ── Component ──────────────────────────────────────────────────────────────────
 const BookCab = () => {
   const { id: carId } = useParams();
   const { userInfo } = useAuth();
@@ -31,18 +54,27 @@ const BookCab = () => {
   const [submitting, setSubmitting] = useState(false);
   const [fareLoading, setFareLoading] = useState(false);
   const [fareData, setFareData] = useState(null);
+  const [fareError, setFareError] = useState('');
+  const [dateTimeError, setDateTimeError] = useState('');
 
   const [form, setForm] = useState({
     selectedPickupCity: '',
-    pickupAddress: '',       // specific address within city
-    selectedDropCity: '',
-    dropAddress: '',         // specific address within city
-    pickupdate: '',
-    pickuptime: '',
-    paymentMethod: 'Cash',
-    isScheduled: false,
+    pickupAddress:      '',
+    selectedDropCity:   '',
+    dropAddress:        '',
+    pickupdate:         '',
+    pickuptime:         '',
+    paymentMethod:      'Cash',
+    isScheduled:        false,
   });
 
+  // Track minimum time allowed when date == today
+  const [minTime, setMinTime] = useState('');
+
+  // Debounce ref for auto-fare
+  const fareDebounceRef = useRef(null);
+
+  // ── Fetch car ──────────────────────────────────────────────────────────────
   useEffect(() => {
     const fetchCar = async () => {
       try {
@@ -56,58 +88,112 @@ const BookCab = () => {
       }
     };
     fetchCar();
-  }, [carId]);
+  }, [carId, navigate]);
 
+  // ── Helpers ────────────────────────────────────────────────────────────────
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
 
-  const handleCalculateFare = async () => {
-    if (!form.selectedPickupCity || !form.selectedDropCity)
-      return toast.error('Please select pickup and drop cities');
-    if (form.selectedPickupCity === form.selectedDropCity)
-      return toast.error('Pickup and drop cities must be different');
-    setFareLoading(true);
-    try {
-      const { data } = await api.post('/bookings/calculate-fare', {
-        pickupCity: form.selectedPickupCity,
-        dropCity: form.selectedDropCity,
-        cartype: car?.cartype,
-      });
-      setFareData(data);
-    } catch {
-      toast.error('Could not calculate fare');
-    } finally {
-      setFareLoading(false);
+  // ── Auto fare calculation (debounced 600ms) ────────────────────────────────
+  const autoCalculateFare = useCallback(
+    (pickup, drop, cartype) => {
+      if (fareDebounceRef.current) clearTimeout(fareDebounceRef.current);
+      if (!pickup || !drop || pickup === drop || !cartype) {
+        setFareData(null);
+        return;
+      }
+      fareDebounceRef.current = setTimeout(async () => {
+        setFareLoading(true);
+        setFareError('');
+        try {
+          const { data } = await api.post('/bookings/calculate-fare', {
+            pickupCity: pickup,
+            dropCity:   drop,
+            cartype,
+          });
+          setFareData(data);
+        } catch (err) {
+          const msg = err.response?.data?.message || 'Could not calculate fare. Please try again.';
+          setFareError(msg);
+          setFareData(null);
+        } finally {
+          setFareLoading(false);
+        }
+      }, 600);
+    },
+    []
+  );
+
+  // Re-calculate when cities change
+  useEffect(() => {
+    autoCalculateFare(form.selectedPickupCity, form.selectedDropCity, car?.cartype);
+  }, [form.selectedPickupCity, form.selectedDropCity, car?.cartype, autoCalculateFare]);
+
+  // ── Date change ────────────────────────────────────────────────────────────
+  const handleDateChange = (e) => {
+    const date = e.target.value;
+    set('pickupdate')(date);
+    // Update min time restriction
+    if (date === todayStr()) {
+      setMinTime(nowTimeStr());
+    } else {
+      setMinTime('');
     }
+    // Re-validate with existing time
+    const err = validatePickupDateTime(date, form.pickuptime);
+    setDateTimeError(err || '');
   };
 
+  // ── Time change ────────────────────────────────────────────────────────────
+  const handleTimeChange = (e) => {
+    const time = e.target.value;
+    set('pickuptime')(time);
+    const err = validatePickupDateTime(form.pickupdate, time);
+    setDateTimeError(err || '');
+  };
+
+  // ── Manual fare recalculate button ────────────────────────────────────────
+  const handleCalculateFare = () => {
+    if (!form.selectedPickupCity || !form.selectedDropCity)
+      return toast.error('Please select pickup and drop locations');
+    if (form.selectedPickupCity === form.selectedDropCity)
+      return toast.error('Pickup and drop locations must be different');
+    autoCalculateFare(form.selectedPickupCity, form.selectedDropCity, car?.cartype);
+  };
+
+  // ── Book ride ──────────────────────────────────────────────────────────────
   const handleBookRide = async () => {
     if (!form.selectedPickupCity || !form.selectedDropCity)
-      return toast.error('Please select pickup and drop cities');
-    if (!form.pickupdate || !form.pickuptime)
-      return toast.error('Please select pickup date and time');
+      return toast.error('Please select pickup and drop locations');
     if (form.selectedPickupCity === form.selectedDropCity)
-      return toast.error('Pickup and drop cities must be different');
+      return toast.error('Pickup and drop locations must be different');
+    if (!form.pickupdate || !form.pickuptime)
+      return toast.error('Please select a pickup date and time');
+
+    // Frontend date/time validation
+    const dtErr = validatePickupDateTime(form.pickupdate, form.pickuptime);
+    if (dtErr) {
+      setDateTimeError(dtErr);
+      return toast.error(dtErr);
+    }
 
     setSubmitting(true);
     try {
       await api.post('/bookings', {
-        selectedPickupState: 'South India',
-        selectedPickupCity: form.selectedPickupCity,
-        selectedDropState: 'South India',
-        selectedDropCity: form.selectedDropCity,
-        pickupAddress: form.pickupAddress,
-        dropAddress: form.dropAddress,
-        pickupdate: form.pickupdate,
-        pickuptime: form.pickuptime,
+        selectedPickupCity:  form.selectedPickupCity,
+        selectedDropCity:    form.selectedDropCity,
+        pickupAddress:       form.pickupAddress,
+        dropAddress:         form.dropAddress,
+        pickupdate:          form.pickupdate,
+        pickuptime:          form.pickuptime,
         carId,
-        paymentMethod: form.paymentMethod,
-        isScheduled: form.isScheduled,
-        userName: userInfo?.name,
+        paymentMethod:       form.paymentMethod,
+        isScheduled:         form.isScheduled,
+        userName:            userInfo?.name,
       });
       toast.success('✅ Booking submitted! A driver will be assigned by admin shortly.');
       navigate('/mybookings');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Booking failed');
+      toast.error(err.response?.data?.message || 'Booking failed. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -115,12 +201,16 @@ const BookCab = () => {
 
   if (loading) return <div className="page-container"><Navbar /><Loader /></div>;
 
+  const isDateTimeInvalid = !!dateTimeError;
+  const canBook = !isDateTimeInvalid && form.selectedPickupCity && form.selectedDropCity
+    && form.pickupdate && form.pickuptime;
+
   return (
     <div className="page-container">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-10">
         <h1 className="section-title">Book Your Ride</h1>
-        <p className="section-subtitle">South India intercity cab booking</p>
+        <p className="section-subtitle">Intercity cab booking</p>
 
         {/* Selected Car */}
         {car && (
@@ -150,19 +240,17 @@ const BookCab = () => {
                 <h2 className="font-semibold text-white">Pickup Location</h2>
               </div>
               <div className="space-y-3">
-                <div>
-                  <LocationSearch
-    label="Pickup Location"
-    value={form.selectedPickupCity}
-    onChange={set("selectedPickupCity")}
-/>
-  
+                <LocationSearch
+                  label="Pickup City"
+                  value={form.selectedPickupCity}
+                  onChange={set('selectedPickupCity')}
+                />
                 <div>
                   <label className="input-label">Pickup Address / Area</label>
                   <input
                     id="pickup-address"
                     type="text"
-                    placeholder="e.g. Indiranagar, MG Road, Airport..."
+                    placeholder="e.g. Indiranagar, MG Road, Airport…"
                     value={form.pickupAddress}
                     onChange={(e) => set('pickupAddress')(e.target.value)}
                     className="input"
@@ -178,23 +266,17 @@ const BookCab = () => {
                 <h2 className="font-semibold text-white">Drop Location</h2>
               </div>
               <div className="space-y-3">
-              <div>
-    <label className="input-label">Drop Location</label>
-
-   <LocationSearch
-    label="Destination"
-    value={form.selectedDropCity}
-    onChange={set("selectedDropCity")}
-/>
-</div>
-</div>
-                
+                <LocationSearch
+                  label="Destination City"
+                  value={form.selectedDropCity}
+                  onChange={set('selectedDropCity')}
+                />
                 <div>
                   <label className="input-label">Drop Address / Area</label>
                   <input
                     id="drop-address"
                     type="text"
-                    placeholder="e.g. Whitefield, Railway Station, Hotel..."
+                    placeholder="e.g. Whitefield, Railway Station, Hotel…"
                     value={form.dropAddress}
                     onChange={(e) => set('dropAddress')(e.target.value)}
                     className="input"
@@ -204,10 +286,10 @@ const BookCab = () => {
             </div>
 
             {/* DATE & TIME */}
-            <div className="card relative z-0">
+            <div className={`card relative z-0 ${isDateTimeInvalid ? 'border-red-400/30' : ''}`}>
               <div className="flex items-center gap-2 mb-4">
                 <Calendar className="w-4 h-4 text-yellow-400" />
-                <h2 className="font-semibold text-white">Pickup Date & Time</h2>
+                <h2 className="font-semibold text-white">Pickup Date &amp; Time</h2>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -216,9 +298,9 @@ const BookCab = () => {
                     id="pickup-date"
                     type="date"
                     value={form.pickupdate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={(e) => set('pickupdate')(e.target.value)}
-                    className="input"
+                    min={todayStr()}
+                    onChange={handleDateChange}
+                    className={`input${isDateTimeInvalid ? ' input-error' : ''}`}
                   />
                 </div>
                 <div>
@@ -227,11 +309,27 @@ const BookCab = () => {
                     id="pickup-time"
                     type="time"
                     value={form.pickuptime}
-                    onChange={(e) => set('pickuptime')(e.target.value)}
-                    className="input"
+                    min={form.pickupdate === todayStr() ? minTime : undefined}
+                    onChange={handleTimeChange}
+                    className={`input${isDateTimeInvalid ? ' input-error' : ''}`}
                   />
                 </div>
               </div>
+
+              {/* Inline datetime error */}
+              {isDateTimeInvalid && (
+                <div className="mt-3 flex items-start gap-2 px-3 py-2 rounded-lg bg-red-400/10 border border-red-400/20">
+                  <AlertCircle className="w-3.5 h-3.5 text-red-400 mt-0.5 shrink-0" />
+                  <p className="field-error !mt-0">{dateTimeError}</p>
+                </div>
+              )}
+
+              {/* Helpful hint */}
+              {!isDateTimeInvalid && !form.pickupdate && (
+                <p className="text-white/25 text-xs mt-2">
+                  ✅ You can book immediately (now) or any future date/time.
+                </p>
+              )}
             </div>
 
             {/* PAYMENT */}
@@ -258,9 +356,10 @@ const BookCab = () => {
 
             {/* SCHEDULED */}
             <label className="flex items-center gap-3 cursor-pointer group">
-              <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                form.isScheduled ? 'bg-yellow-400 border-yellow-400' : 'border-white/20 group-hover:border-white/40'
-              }`}
+              <div
+                className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
+                  form.isScheduled ? 'bg-yellow-400 border-yellow-400' : 'border-white/20 group-hover:border-white/40'
+                }`}
                 onClick={() => set('isScheduled')(!form.isScheduled)}
               >
                 {form.isScheduled && <span className="text-black text-xs font-black">✓</span>}
@@ -281,13 +380,14 @@ const BookCab = () => {
                 {fareLoading
                   ? <div className="w-4 h-4 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
                   : <Calculator className="w-4 h-4" />}
-                Calculate Fare
+                {fareLoading ? 'Calculating…' : 'Recalculate'}
               </button>
               <button
                 id="book-ride-btn"
                 onClick={handleBookRide}
-                disabled={submitting}
+                disabled={submitting || isDateTimeInvalid}
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
+                title={isDateTimeInvalid ? dateTimeError : ''}
               >
                 {submitting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                 Book Ride
@@ -297,7 +397,25 @@ const BookCab = () => {
 
           {/* RIGHT: Fare Card */}
           <div>
-            {fareData ? (
+            {fareLoading ? (
+              <div className="card border-dashed border-white/10 flex flex-col items-center justify-center min-h-[280px] text-center">
+                <div className="w-10 h-10 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin mb-4" />
+                <p className="text-white/50 text-sm">Calculating fare…</p>
+                <p className="text-white/25 text-xs mt-1">Fetching route distance</p>
+              </div>
+            ) : fareError ? (
+              <div className="card border-red-400/20 bg-red-400/5 flex flex-col items-center justify-center min-h-[280px] text-center">
+                <AlertCircle className="w-10 h-10 text-red-400/50 mb-3" />
+                <p className="text-red-400 font-medium mb-1 text-sm">Fare Calculation Failed</p>
+                <p className="text-white/35 text-xs max-w-[200px]">{fareError}</p>
+                <button
+                  onClick={handleCalculateFare}
+                  className="mt-4 text-xs text-yellow-400/70 hover:text-yellow-400 border border-yellow-400/20 hover:border-yellow-400/40 px-3 py-1.5 rounded-lg transition-all"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : fareData ? (
               <FareCard
                 fareData={fareData}
                 pickup={form.pickupAddress ? `${form.pickupAddress}, ${form.selectedPickupCity}` : form.selectedPickupCity}
@@ -305,13 +423,13 @@ const BookCab = () => {
                 cartype={car?.cartype}
               />
             ) : (
-              <div className="card border-dashed border-white/10 flex flex-col items-center justify-center min-h-[320px] text-center">
+              <div className="card border-dashed border-white/10 flex flex-col items-center justify-center min-h-[280px] text-center">
                 <div className="w-16 h-16 rounded-2xl bg-yellow-400/5 border border-yellow-400/10 flex items-center justify-center mb-4">
                   <Calculator className="w-8 h-8 text-yellow-400/30" />
                 </div>
-                <p className="text-white/50 font-medium mb-1">No fare calculated yet</p>
+                <p className="text-white/50 font-medium mb-1">Fare auto-calculates</p>
                 <p className="text-white/25 text-sm">
-                  Select pickup & drop cities,<br />then click <span className="text-yellow-400/50">Calculate Fare</span>
+                  Select pickup &amp; drop cities above —<br />fare will calculate automatically
                 </p>
               </div>
             )}

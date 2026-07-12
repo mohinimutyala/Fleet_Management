@@ -50,6 +50,9 @@ const rideSchema = new mongoose.Schema({
     default: 'Cash',
   },
   notes: { type: String, default: '' },
+  // Trip lifecycle timestamps (must be in schema or Mongoose strict mode drops them)
+  startedAt:   { type: Date, default: null },
+  completedAt: { type: Date, default: null },
 }, { timestamps: true });
 
 const Mybookings = mongoose.model('Mybookings', rideSchema);

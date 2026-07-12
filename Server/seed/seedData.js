@@ -48,6 +48,8 @@ const completedBooking = ({
     startedAt:  new Date(completedAt.getTime() - 1800000),
     completedAt,
     bookeddate: date,
+    createdAt: new Date(completedAt.getTime() - 4000000),
+    updatedAt: completedAt,
   };
 };
 
@@ -174,8 +176,32 @@ const seed = async () => {
       paymentMethod: 'Cash', daysAgo: 0,
     });
 
-    // 5. Active bookings — 1 Confirmed (Pooja assigned), 2 Pending
+    // 5. Active bookings — 1 In Progress (Rahul), 1 Confirmed (Pooja), 2 Pending
+    const now = new Date();
+    
+    // Rahul is busy, Ola Electric is booked
+    await Driver.findByIdAndUpdate(drivers[1]._id, { status: 'Busy' });
+    await Car.findByIdAndUpdate(cars[4]._id, { vehicleStatus: 'Booked' });
+
+    // Pooja is busy, Maruti Swift is booked
+    await Driver.findByIdAndUpdate(drivers[0]._id, { status: 'Busy' });
+    await Car.findByIdAndUpdate(cars[0]._id, { vehicleStatus: 'Booked' });
+
     const activeBookings = [
+      {
+        selectedPickupCity: 'Mumbai', pickupAddress: 'Andheri West',
+        selectedDropCity: 'Pune',     dropAddress: 'Viman Nagar',
+        pickupdate: today, pickuptime: '12:00',
+        fare: '3200', carname: cars[4].carname, cartype: cars[4].cartype,
+        carno: cars[4].carno, price: '7', carId: cars[4]._id,
+        driverId: drivers[1]._id, drivername: drivers[1].name,
+        userId: users[1]._id, userName: 'Rahul Verma',
+        paymentMethod: 'Cash', assignedAt: new Date(now.getTime() - 3600000),
+        startedAt: new Date(now.getTime() - 1800000),
+        bookingStatus: 'Confirmed', tripStatus: 'Started',
+        bookeddate: today,
+        createdAt: new Date(now.getTime() - 4000000), updatedAt: now,
+      },
       {
         selectedPickupCity: 'Hyderabad',  pickupAddress: 'Hitech City',
         selectedDropCity: 'Vijayawada',   dropAddress: 'Bus Stand',
@@ -184,9 +210,10 @@ const seed = async () => {
         carno: cars[0].carno, price: '10', carId: cars[0]._id,
         driverId: drivers[0]._id, drivername: drivers[0].name,
         userId: users[1]._id, userName: 'Rahul Verma',
-        paymentMethod: 'UPI', assignedAt: new Date(),
+        paymentMethod: 'UPI', assignedAt: new Date(now.getTime() - 1800000),
         bookingStatus: 'Confirmed', tripStatus: 'Assigned',
         bookeddate: today,
+        createdAt: new Date(now.getTime() - 2000000), updatedAt: now,
       },
       {
         selectedPickupCity: 'Bengaluru', pickupAddress: 'Koramangala',
@@ -198,6 +225,7 @@ const seed = async () => {
         paymentMethod: 'Cash',
         bookingStatus: 'Pending', tripStatus: 'Waiting',
         bookeddate: today,
+        createdAt: new Date(now.getTime() - 1000000), updatedAt: now,
       },
       {
         selectedPickupCity: 'Kochi',    pickupAddress: 'MG Road',
@@ -209,10 +237,12 @@ const seed = async () => {
         paymentMethod: 'UPI',
         bookingStatus: 'Pending', tripStatus: 'Waiting',
         bookeddate: today,
+        createdAt: new Date(now.getTime() - 500000), updatedAt: now,
       },
     ];
 
-    await Booking.create([
+    // Use native driver insertMany to completely bypass Mongoose's timestamp overrides
+    await mongoose.connection.collection('mybookings').insertMany([
       snehaB1, snehaB2, snehaB3,
       arjunB1, arjunB2,
       meeraB1,
@@ -244,9 +274,10 @@ const seed = async () => {
     console.log(`  Driver Payout    30%  ₹${drvPayout}`);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     console.log('BOOKINGS');
-    console.log('  7 Completed (with full financial data)');
-    console.log('  1 Confirmed  (Pooja assigned — ready to Start)');
-    console.log('  2 Pending    (awaiting driver assignment)');
+    console.log('  7 Completed   (historic & today mix)');
+    console.log('  1 In Progress (Rahul driving — Started)');
+    console.log('  1 Confirmed   (Pooja assigned — ready to Start)');
+    console.log('  2 Pending     (awaiting driver assignment)');
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
     process.exit(0);

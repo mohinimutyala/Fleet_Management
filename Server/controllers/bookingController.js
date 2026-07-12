@@ -2,6 +2,17 @@ const Booking = require('../models/MyBookingSchema');
 const Car = require('../models/CarSchema');
 const Driver = require('../models/DriverSchema');
 const { calculateFare, calculateCommission } = require('../services/fareService');
+
+// ---------------------------------------------------------------------------
+// Helper: parse pickupdate (YYYY-MM-DD) + pickuptime (HH:MM) → UTC Date
+// ---------------------------------------------------------------------------
+function parsePickupDateTime(pickupdate, pickuptime) {
+  // pickupdate: "2026-07-13", pickuptime: "14:30"
+  const combined = `${pickupdate}T${pickuptime}:00`; // local ISO string (no Z)
+  const dt = new Date(combined);
+  return dt;
+}
+
 // @desc  Create booking (no driver assigned yet — pending admin assignment)
 // @route POST /api/bookings
 const createBooking = async (req, res) => {
@@ -13,22 +24,48 @@ const createBooking = async (req, res) => {
       carId, paymentMethod, notes,
     } = req.body;
 
+    // ── Date / Time validation ─────────────────────────────────────────────
+    if (!pickupdate || !pickuptime) {
+      return res.status(400).json({ message: 'Pickup date and time are required.' });
+    }
+
+    const pickupDT = parsePickupDateTime(pickupdate, pickuptime);
+
+    if (isNaN(pickupDT.getTime())) {
+      return res.status(400).json({ message: 'Invalid pickup date or time format.' });
+    }
+
+    const nowPlus1Min = new Date(Date.now() - 60_000); // allow up to 1 min in the past (clock skew)
+    if (pickupDT < nowPlus1Min) {
+      return res.status(400).json({
+        message: 'Booking date/time cannot be in the past. Please select a current or future time.',
+      });
+    }
+
+    // ── Vehicle validation ─────────────────────────────────────────────────
     const car = await Car.findById(carId);
     if (!car) return res.status(404).json({ message: 'Vehicle not found' });
-    if (car.vehicleStatus === 'Booked') return res.status(400).json({ message: 'Vehicle is already booked' });
+    if (car.vehicleStatus === 'Booked')
+      return res.status(400).json({ message: 'Vehicle is already booked' });
 
-      const fareData = await calculateFare(
-    selectedPickupCity,
-    selectedDropCity,
-    car.cartype
-);
+    // ── Fare calculation ───────────────────────────────────────────────────
+    let fareData;
+    try {
+      fareData = await calculateFare(selectedPickupCity, selectedDropCity, car.cartype);
+    } catch (fareErr) {
+      return res.status(502).json({
+        message: `Could not calculate route: ${fareErr.message}`,
+      });
+    }
 
+    // ── Create booking ─────────────────────────────────────────────────────
     const booking = await Booking.create({
       selectedPickupCity,
       pickupAddress: pickupAddress || '',
       selectedDropCity,
       dropAddress: dropAddress || '',
-      pickupdate, pickuptime,
+      pickupdate,
+      pickuptime,
       fare: fareData.totalFare.toString(),
       carname: car.carname,
       cartype: car.cartype,
@@ -56,11 +93,14 @@ const calculateFarePreview = async (req, res) => {
     const { pickupCity, dropCity, cartype } = req.body;
     if (!pickupCity || !dropCity || !cartype)
       return res.status(400).json({ message: 'pickupCity, dropCity, cartype are required' });
-    const result = await calculateFare(
-    pickupCity,
-    dropCity,
-    cartype
-);
+
+    let result;
+    try {
+      result = await calculateFare(pickupCity, dropCity, cartype);
+    } catch (fareErr) {
+      return res.status(502).json({ message: fareErr.message });
+    }
+
     res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -179,7 +219,7 @@ const assignDriver = async (req, res) => {
   }
 };
 
-// @desc  Complete trip (admin or driver)
+// @desc  Complete trip (driver)
 // @route PUT /api/bookings/:id/complete-trip
 const completeTrip = async (req, res) => {
   try {
@@ -206,7 +246,7 @@ const completeTrip = async (req, res) => {
     booking.completedAt = new Date();
     await booking.save();
 
-    // Free driver
+    // Free driver and update stats
     if (booking.driverId) {
       const driver = await Driver.findById(booking.driverId);
       if (driver) {
@@ -267,15 +307,23 @@ const getDriverBookings = async (req, res) => {
 
 // @desc  Start trip (driver)
 // @route PUT /api/bookings/:id/start-trip
+// BUG FIX: previously set tripStatus in memory but never called booking.save()
 const startTrip = async (req, res) => {
   try {
     const booking = await Booking.findById(req.params.id);
     if (!booking) return res.status(404).json({ message: 'Booking not found' });
     if (booking.tripStatus !== 'Assigned')
       return res.status(400).json({ message: 'Trip must be assigned before starting' });
+
+    // Verify the caller is the assigned driver
+    if (!booking.driverId || booking.driverId.toString() !== req.user.id.toString())
+      return res.status(403).json({ message: 'Only the assigned driver can start this trip' });
+
     booking.tripStatus = 'Started';
     booking.startedAt = new Date();
-    res.json(booking);
+    await booking.save(); // ← FIX: was missing, so status was never persisted
+
+    res.json({ message: 'Trip started', booking });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
