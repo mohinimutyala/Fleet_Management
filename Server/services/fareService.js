@@ -26,6 +26,7 @@ const BASE_FARE = {
   'Luxury': 250, 'Bike': 20, 'Auto': 30,
 };
 
+const axios = require('axios');
 
 const geoAxios = axios.create({
   timeout: 15000,
