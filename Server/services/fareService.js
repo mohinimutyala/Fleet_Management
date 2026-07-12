@@ -34,7 +34,7 @@ const geoAxios = axios.create({
 
 
 // Shared axios instance with 10-second timeout to prevent hanging requests
-const geoAxios = axios.create({ timeout: 10000 });
+// const geoAxios = axios.create({ timeout: 10000 });
 
 /**
  * Geocode a place name to lat/lon using Nominatim
@@ -167,7 +167,7 @@ async function getDistance(fromPlace, toPlace) {
       distance: Math.round(route.distance / 1000),
       duration: Math.round(route.duration / 60),
     };
-    
+
   } catch (err) {
   console.log("FULL ERROR:", err);
   console.log("ERROR CODE:", err.code);
