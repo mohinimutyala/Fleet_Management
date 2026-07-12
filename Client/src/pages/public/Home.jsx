@@ -29,7 +29,7 @@ const Home = () => (
         <div className="max-w-3xl">
           <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-yellow-400/10 border border-yellow-400/20 rounded-full text-yellow-400 text-xs font-medium mb-6">
             <span className="w-1.5 h-1.5 bg-yellow-400 rounded-full animate-pulse" />
-            Available Across India
+            Available Across World
           </div>
           <h1 className="text-5xl sm:text-6xl lg:text-7xl font-black text-white leading-tight mb-6">
             Your Ride,<br />
