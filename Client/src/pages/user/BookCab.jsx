@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -71,8 +71,11 @@ const BookCab = () => {
   // Track minimum time allowed when date == today
   const [minTime, setMinTime] = useState('');
 
-  // Debounce ref for auto-fare
-  const fareDebounceRef = useRef(null);
+  // Clear fare data if user changes cities, forcing manual recalculation
+  useEffect(() => {
+    setFareData(null);
+    setFareError('');
+  }, [form.selectedPickupCity, form.selectedDropCity]);
 
   // ── Fetch car ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -92,41 +95,6 @@ const BookCab = () => {
 
   // ── Helpers ────────────────────────────────────────────────────────────────
   const set = (key) => (val) => setForm((f) => ({ ...f, [key]: val }));
-
-  // ── Auto fare calculation (debounced 600ms) ────────────────────────────────
-  const autoCalculateFare = useCallback(
-    (pickup, drop, cartype) => {
-      if (fareDebounceRef.current) clearTimeout(fareDebounceRef.current);
-      if (!pickup || !drop || pickup === drop || !cartype) {
-        setFareData(null);
-        return;
-      }
-      fareDebounceRef.current = setTimeout(async () => {
-        setFareLoading(true);
-        setFareError('');
-        try {
-          const { data } = await api.post('/bookings/calculate-fare', {
-            pickupCity: pickup,
-            dropCity:   drop,
-            cartype,
-          });
-          setFareData(data);
-        } catch (err) {
-          const msg = err.response?.data?.message || 'Could not calculate fare. Please try again.';
-          setFareError(msg);
-          setFareData(null);
-        } finally {
-          setFareLoading(false);
-        }
-      }, 600);
-    },
-    []
-  );
-
-  // Re-calculate when cities change
-  useEffect(() => {
-    autoCalculateFare(form.selectedPickupCity, form.selectedDropCity, car?.cartype);
-  }, [form.selectedPickupCity, form.selectedDropCity, car?.cartype, autoCalculateFare]);
 
   // ── Date change ────────────────────────────────────────────────────────────
   const handleDateChange = (e) => {
@@ -152,22 +120,40 @@ const BookCab = () => {
   };
 
   // ── Manual fare recalculate button ────────────────────────────────────────
-  const handleCalculateFare = () => {
+  const handleCalculateFare = async () => {
     if (!form.selectedPickupCity || !form.selectedDropCity)
       return toast.error('Please select pickup and drop locations');
-    if (form.selectedPickupCity === form.selectedDropCity)
+    if (form.selectedPickupCity.trim().toLowerCase() === form.selectedDropCity.trim().toLowerCase())
       return toast.error('Pickup and drop locations must be different');
-    autoCalculateFare(form.selectedPickupCity, form.selectedDropCity, car?.cartype);
+
+    setFareLoading(true);
+    setFareError('');
+    try {
+      const { data } = await api.post('/bookings/calculate-fare', {
+        pickupCity: form.selectedPickupCity,
+        dropCity:   form.selectedDropCity,
+        cartype:    car?.cartype,
+      });
+      setFareData(data);
+    } catch (err) {
+      const msg = err.response?.data?.message || 'Could not calculate fare. Please try again.';
+      setFareError(msg);
+      setFareData(null);
+    } finally {
+      setFareLoading(false);
+    }
   };
 
   // ── Book ride ──────────────────────────────────────────────────────────────
   const handleBookRide = async () => {
     if (!form.selectedPickupCity || !form.selectedDropCity)
       return toast.error('Please select pickup and drop locations');
-    if (form.selectedPickupCity === form.selectedDropCity)
+    if (form.selectedPickupCity.trim().toLowerCase() === form.selectedDropCity.trim().toLowerCase())
       return toast.error('Pickup and drop locations must be different');
     if (!form.pickupdate || !form.pickuptime)
       return toast.error('Please select a pickup date and time');
+    if (!fareData)
+      return toast.error('Please calculate the fare before booking');
 
     // Frontend date/time validation
     const dtErr = validatePickupDateTime(form.pickupdate, form.pickuptime);
@@ -203,7 +189,7 @@ const BookCab = () => {
 
   const isDateTimeInvalid = !!dateTimeError;
   const canBook = !isDateTimeInvalid && form.selectedPickupCity && form.selectedDropCity
-    && form.pickupdate && form.pickuptime;
+    && form.pickupdate && form.pickuptime && fareData;
 
   return (
     <div className="page-container">
@@ -380,14 +366,14 @@ const BookCab = () => {
                 {fareLoading
                   ? <div className="w-4 h-4 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
                   : <Calculator className="w-4 h-4" />}
-                {fareLoading ? 'Calculating…' : 'Recalculate'}
+                {fareLoading ? 'Calculating…' : 'Calculate'}
               </button>
               <button
                 id="book-ride-btn"
                 onClick={handleBookRide}
-                disabled={submitting || isDateTimeInvalid}
+                disabled={submitting || isDateTimeInvalid || !fareData}
                 className="btn-primary flex-1 flex items-center justify-center gap-2"
-                title={isDateTimeInvalid ? dateTimeError : ''}
+                title={!fareData ? 'Calculate fare first' : (isDateTimeInvalid ? dateTimeError : '')}
               >
                 {submitting && <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" />}
                 Book Ride
@@ -427,10 +413,8 @@ const BookCab = () => {
                 <div className="w-16 h-16 rounded-2xl bg-yellow-400/5 border border-yellow-400/10 flex items-center justify-center mb-4">
                   <Calculator className="w-8 h-8 text-yellow-400/30" />
                 </div>
-                <p className="text-white/50 font-medium mb-1">Fare auto-calculates</p>
-                <p className="text-white/25 text-sm">
-                  Select pickup &amp; drop cities above —<br />fare will calculate automatically
-                </p>
+                <p className="text-white/50 font-medium mb-1">Calculate fare to proceed</p>
+                <p className="text-white/30 text-sm">Select pickup and drop locations</p>
               </div>
             )}
 

@@ -48,13 +48,22 @@ const createBooking = async (req, res) => {
     if (car.vehicleStatus === 'Booked')
       return res.status(400).json({ message: 'Vehicle is already booked' });
 
+    if (selectedPickupCity.trim().toLowerCase() === selectedDropCity.trim().toLowerCase()) {
+      return res.status(400).json({ message: 'Pickup and Drop cities cannot be the same.' });
+    }
+
     // ── Fare calculation ───────────────────────────────────────────────────
     let fareData;
     try {
       fareData = await calculateFare(selectedPickupCity, selectedDropCity, car.cartype);
     } catch (fareErr) {
+      console.error('\n[Fare Calculation Error (createBooking)]:');
+      console.error('Message:', fareErr.message);
+      console.error('Status:', fareErr.response?.status);
+      console.error('Stack:', fareErr.stack);
+      console.error('--------------------------------------\n');
       return res.status(502).json({
-        message: `Could not calculate route: ${fareErr.message}`,
+        message: `Could not calculate route: ${fareErr.message || 'Routing service unavailable'}`,
       });
     }
 
@@ -86,25 +95,35 @@ const createBooking = async (req, res) => {
   }
 };
 
-// @desc  Calculate fare (preview)
-// @route POST /api/bookings/calculate-fare
 const calculateFarePreview = async (req, res) => {
   try {
     const { pickupCity, dropCity, cartype } = req.body;
     if (!pickupCity || !dropCity || !cartype)
       return res.status(400).json({ message: 'pickupCity, dropCity, cartype are required' });
 
+    if (pickupCity.trim().toLowerCase() === dropCity.trim().toLowerCase()) {
+      return res.status(400).json({ message: 'Pickup and Drop cities cannot be the same.' });
+    }
+
     let result;
     try {
       result = await calculateFare(pickupCity, dropCity, cartype);
     } catch (fareErr) {
-      return res.status(502).json({ message: fareErr.message });
+      console.error('\n[Fare Calculation Error (calculateFarePreview)]:');
+      console.error('Message:', fareErr.message);
+      console.error('Status:', fareErr.response?.status);
+      console.error('Stack:', fareErr.stack);
+      console.error('--------------------------------------\n');
+      return res.status(502).json({ message: fareErr.message || 'Routing service unavailable' });
     }
 
     res.json(result);
   } catch (err) {
-    console.log('fare Error:', err);
-    res.status(500).json({ message: err.message });
+    console.error('\n[Unhandled Fare Error (calculateFarePreview)]:');
+    console.error('Message:', err.message);
+    console.error('Stack:', err.stack);
+    console.error('--------------------------------------\n');
+    res.status(500).json({ message: err.message || 'Internal server error' });
   }
 };
 
