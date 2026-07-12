@@ -88,7 +88,7 @@ async function getDistance(fromPlace, toPlace) {
     if (status === 429 || status === 502 || status === 503) {
       throw new Error(`Routing service is temporarily busy (${status}). Please try again in a few moments.`);
     }
-    throw new Error(`Routing service unavailable. Please try again shortly.`);
+    throw new Error(`Routing service unavailable. Please try again shortly. (Error: ${status || err.message})`);
   }
 
   if (

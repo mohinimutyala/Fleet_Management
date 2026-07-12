@@ -366,7 +366,7 @@ const BookCab = () => {
                 {fareLoading
                   ? <div className="w-4 h-4 border-2 border-yellow-400/30 border-t-yellow-400 rounded-full animate-spin" />
                   : <Calculator className="w-4 h-4" />}
-                {fareLoading ? 'Calculating…' : 'Recalculate'}
+                {fareLoading ? 'Calculating…' : 'Calculate'}
               </button>
               <button
                 id="book-ride-btn"
