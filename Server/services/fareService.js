@@ -12,7 +12,7 @@ const DRIVER_COMMISSION_RATE = 0.30; // Driver gets 30%, platform keeps 70%
 const calculateCommission = (fare) => {
   const f = parseFloat(fare) || 0;
   const driverCommission = parseFloat((f * DRIVER_COMMISSION_RATE).toFixed(2));
-  const platformRevenue  = parseFloat((f * (1 - DRIVER_COMMISSION_RATE)).toFixed(2));
+  const platformRevenue = parseFloat((f * (1 - DRIVER_COMMISSION_RATE)).toFixed(2));
   return { driverCommission, platformRevenue };
 };
 
@@ -74,21 +74,7 @@ async function getDistance(fromPlace, toPlace) {
     `${from.lon},${from.lat};${to.lon},${to.lat}` +
     `?overview=false`;
 
-  let response;
-  try {
-    response = await geoAxios.get(url);
-  } catch (err) {
-    throw new Error(`Routing service unavailable. Please try again shortly.`);
-  }
-
-  if (
-    !response.data ||
-    !response.data.routes ||
-    !response.data.routes.length ||
-    !response.data.routes[0]
-  ) {
-    throw new Error(`No driving route found between "${fromPlace}" and "${toPlace}".`);
-  }
+  const response = await axios.get(url);
 
   const route = response.data.routes[0];
   const distanceKm = Math.round(route.distance / 1000);
@@ -115,8 +101,8 @@ async function calculateFare(pickup, drop, cartype) {
   // This will throw a descriptive error if anything fails — let callers handle it
   const route = await getDistance(pickup, drop);
 
-  const perKm  = CAB_FARE_PER_KM[cartype] || 10;
-  const base   = BASE_FARE[cartype] || 50;
+  const perKm = CAB_FARE_PER_KM[cartype] || 10;
+  const base = BASE_FARE[cartype] || 50;
   const totalFare = base + route.distance * perKm;
 
   return {

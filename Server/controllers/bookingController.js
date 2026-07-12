@@ -103,6 +103,7 @@ const calculateFarePreview = async (req, res) => {
 
     res.json(result);
   } catch (err) {
+    console.log('fare Error:', err);
     res.status(500).json({ message: err.message });
   }
 };
