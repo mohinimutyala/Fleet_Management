@@ -21,7 +21,8 @@ const LocationSearch = ({ label, value, onChange }) => {
               q: query,
               format: "json",
               addressdetails: 1,
-              limit: 5,
+               countrycodes: "in",
+              limit: 10,
             },
             headers: {
               "Accept-Language": "en",
@@ -38,30 +39,64 @@ const LocationSearch = ({ label, value, onChange }) => {
     return () => clearTimeout(delay);
   }, [query]);
 
+  // const selectLocation = (place) => {
+  //   const locationName = [
+  //     place.address?.suburb ||
+  //       place.address?.neighbourhood ||
+  //       place.address?.city_district,
+
+  //     place.address?.city ||
+  //       place.address?.town ||
+  //       place.address?.village,
+
+  //     place.address?.state,
+  //   ]
+  //     .filter(Boolean)
+  //     .filter((v, i, arr) => arr.indexOf(v) === i)
+  //     .join(", ");
+
+  //   const finalLocation = locationName || place.display_name;
+
+  //   setQuery(finalLocation);
+  //   onChange(finalLocation);
+
+  //   setSuggestions([]);
+  //   setShowSuggestions(false);
+  // };
+
   const selectLocation = (place) => {
-    const locationName = [
-      place.address?.suburb ||
-        place.address?.neighbourhood ||
-        place.address?.city_district,
+  const city =
+    place.address?.city ||
+    place.address?.town ||
+    place.address?.village ||
+    place.address?.municipality ||
+    place.address?.county ||
+    place.display_name.split(",")[0];
 
-      place.address?.city ||
-        place.address?.town ||
-        place.address?.village,
+  const locality =
+    place.address?.suburb ||
+    place.address?.neighbourhood ||
+    place.address?.city_district ||
+    place.address?.hamlet;
 
-      place.address?.state,
-    ]
-      .filter(Boolean)
-      .filter((v, i, arr) => arr.indexOf(v) === i)
-      .join(", ");
+  const pincode = place.address?.postcode;
 
-    const finalLocation = locationName || place.display_name;
+  let finalLocation = city;
 
-    setQuery(finalLocation);
-    onChange(finalLocation);
+  if (locality && locality !== city) {
+    finalLocation = `${locality}, ${city}`;
+  }
 
-    setSuggestions([]);
-    setShowSuggestions(false);
-  };
+  if (pincode) {
+    finalLocation = `${finalLocation}, ${pincode}`;
+  }
+
+  setQuery(finalLocation);
+  onChange(finalLocation);
+
+  setSuggestions([]);
+  setShowSuggestions(false);
+};
 
   return (
     <div className="relative z-50">
