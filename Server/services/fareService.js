@@ -58,7 +58,11 @@ async function getDistance(fromPlace, toPlace) {
         `${from.lon},${from.lat};${to.lon},${to.lat}` +
         `?overview=false`;
 
-    const response = await axios.get(url);
+
+    const response = await axios.get(url, {
+    timeout: 10000,
+    family: 4
+});
 
     const route = response.data.routes[0];
 
