@@ -44,7 +44,11 @@ async function getCoordinates(place) {
       headers: { 'User-Agent': 'CarGo/1.0' },
     });
   } catch (err) {
-    throw new Error(`Geocoding service unavailable for "${place}". Please try again.`);
+    const status = err.response?.status;
+    if (status === 429 || status === 502 || status === 503) {
+      throw new Error(`Geocoding service is temporarily overloaded (${status}). Please try again in a few moments.`);
+    }
+    throw new Error(`Geocoding service unavailable for "${place}". Please check your internet connection or try again.`);
   }
 
   if (!response.data || !response.data.length) {
@@ -74,7 +78,28 @@ async function getDistance(fromPlace, toPlace) {
     `${from.lon},${from.lat};${to.lon},${to.lat}` +
     `?overview=false`;
 
-  const response = await axios.get(url);
+  let response;
+  try {
+    response = await geoAxios.get(url, {
+      headers: { 'User-Agent': 'CarGo/1.0' },
+    });
+  } catch (err) {
+    const status = err.response?.status;
+    if (status === 429 || status === 502 || status === 503) {
+      throw new Error(`Routing service is temporarily busy (${status}). Please try again in a few moments.`);
+    }
+    throw new Error(`Routing service unavailable. Please try again shortly.`);
+  }
+
+  if (
+    !response ||
+    !response.data ||
+    !response.data.routes ||
+    !response.data.routes.length ||
+    !response.data.routes[0]
+  ) {
+    throw new Error(`No driving route found between "${fromPlace}" and "${toPlace}".`);
+  }
 
   const route = response.data.routes[0];
   const distanceKm = Math.round(route.distance / 1000);
