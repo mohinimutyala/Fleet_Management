@@ -67,53 +67,115 @@ async function getCoordinates(place) {
  * @param {string} toPlace
  * @returns {{ distance: number, duration: number }} — km and minutes
  */
+// async function getDistance(fromPlace, toPlace) {
+//   const [from, to] = await Promise.all([
+//     getCoordinates(fromPlace),
+//     getCoordinates(toPlace),
+//   ]);
+
+//   const url =
+//     `https://router.project-osrm.org/route/v1/driving/` +
+//     `${from.lon},${from.lat};${to.lon},${to.lat}` +
+//     `?overview=false`;
+
+//   let response;
+//   try {
+//     response = await geoAxios.get(url, {
+//       headers: { 'User-Agent': 'CarGo/1.0' },
+//     });
+//   } catch (err) {
+//     const status = err.response?.status;
+//     if (status === 429 || status === 502 || status === 503) {
+//       throw new Error(`Routing service is temporarily busy (${status}). Please try again in a few moments.`);
+//     }
+//     throw new Error(`Routing service unavailable. Please try again shortly. (Error: ${status || err.message})`);
+//   }
+
+//   if (
+//     !response ||
+//     !response.data ||
+//     !response.data.routes ||
+//     !response.data.routes.length ||
+//     !response.data.routes[0]
+//   ) {
+//     throw new Error(`No driving route found between "${fromPlace}" and "${toPlace}".`);
+//   }
+
+//   const route = response.data.routes[0];
+//   const distanceKm = Math.round(route.distance / 1000);
+//   const durationMin = Math.round(route.duration / 60);
+
+//   if (distanceKm === 0) {
+//     throw new Error(`The calculated distance between "${fromPlace}" and "${toPlace}" is zero. Please verify the locations.`);
+//   }
+
+//   return {
+//     distance: distanceKm,
+//     duration: durationMin,
+//   };
+// }
+
+
+
+
+
 async function getDistance(fromPlace, toPlace) {
-  const [from, to] = await Promise.all([
-    getCoordinates(fromPlace),
-    getCoordinates(toPlace),
-  ]);
-
-  const url =
-    `https://router.project-osrm.org/route/v1/driving/` +
-    `${from.lon},${from.lat};${to.lon},${to.lat}` +
-    `?overview=false`;
-
-  let response;
   try {
-    response = await geoAxios.get(url, {
-      headers: { 'User-Agent': 'CarGo/1.0' },
+    console.log("FROM PLACE:", fromPlace);
+    console.log("TO PLACE:", toPlace);
+
+    const [from, to] = await Promise.all([
+      getCoordinates(fromPlace),
+      getCoordinates(toPlace),
+    ]);
+
+    console.log("FROM COORDS:", from);
+    console.log("TO COORDS:", to);
+
+    const url =
+      `https://router.project-osrm.org/route/v1/driving/` +
+      `${from.lon},${from.lat};${to.lon},${to.lat}` +
+      `?overview=false`;
+
+    console.log("OSRM URL:", url);
+
+    const response = await geoAxios.get(url, {
+      headers: {
+        "User-Agent": "CarGo/1.0",
+      },
+      timeout: 10000,
     });
-  } catch (err) {
-    const status = err.response?.status;
-    if (status === 429 || status === 502 || status === 503) {
-      throw new Error(`Routing service is temporarily busy (${status}). Please try again in a few moments.`);
+
+    console.log("OSRM RESPONSE:", response.data);
+
+    if (
+      !response.data ||
+      !response.data.routes ||
+      !response.data.routes.length
+    ) {
+      throw new Error("No route returned from OSRM");
     }
-    throw new Error(`Routing service unavailable. Please try again shortly. (Error: ${status || err.message})`);
+
+    const route = response.data.routes[0];
+
+    return {
+      distance: Math.round(route.distance / 1000),
+      duration: Math.round(route.duration / 60),
+    };
+  } catch (err) {
+    console.log("DISTANCE ERROR:", err.message);
+    console.log("ERROR RESPONSE:", err.response?.data);
+
+    throw new Error(
+      `Routing service unavailable. Please try again shortly. (${err.message})`
+    );
   }
-
-  if (
-    !response ||
-    !response.data ||
-    !response.data.routes ||
-    !response.data.routes.length ||
-    !response.data.routes[0]
-  ) {
-    throw new Error(`No driving route found between "${fromPlace}" and "${toPlace}".`);
-  }
-
-  const route = response.data.routes[0];
-  const distanceKm = Math.round(route.distance / 1000);
-  const durationMin = Math.round(route.duration / 60);
-
-  if (distanceKm === 0) {
-    throw new Error(`The calculated distance between "${fromPlace}" and "${toPlace}" is zero. Please verify the locations.`);
-  }
-
-  return {
-    distance: distanceKm,
-    duration: durationMin,
-  };
 }
+
+
+
+
+
 
 /**
  * Calculate full fare breakdown for a booking
