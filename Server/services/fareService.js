@@ -26,7 +26,12 @@ const BASE_FARE = {
   'Luxury': 250, 'Bike': 20, 'Auto': 30,
 };
 
-const axios = require('axios');
+
+const geoAxios = axios.create({
+  timeout: 15000,
+  family: 4,
+});
+
 
 // Shared axios instance with 10-second timeout to prevent hanging requests
 const geoAxios = axios.create({ timeout: 10000 });
@@ -162,14 +167,29 @@ async function getDistance(fromPlace, toPlace) {
       distance: Math.round(route.distance / 1000),
       duration: Math.round(route.duration / 60),
     };
+    
   } catch (err) {
-    console.log("DISTANCE ERROR:", err.message);
-    console.log("ERROR RESPONSE:", err.response?.data);
+  console.log("FULL ERROR:", err);
+  console.log("ERROR CODE:", err.code);
+  console.log("ERROR MESSAGE:", err.message);
+  console.log("ERROR RESPONSE:", err.response?.data);
 
-    throw new Error(
-      `Routing service unavailable. Please try again shortly. (${err.message})`
-    );
+  if (err.code === "ETIMEDOUT") {
+    throw new Error("Routing request timed out.");
   }
+
+  if (err.code === "ECONNRESET") {
+    throw new Error("Connection reset by routing service.");
+  }
+
+  if (err.code === "ENETUNREACH") {
+    throw new Error("Network unreachable.");
+  }
+
+  throw new Error(
+    `Routing service unavailable. (${err.code || err.message})`
+  );
+}
 }
 
 
