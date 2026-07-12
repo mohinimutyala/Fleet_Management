@@ -21,8 +21,9 @@ const LocationSearch = ({ label, value, onChange }) => {
               q: query,
               format: "json",
               addressdetails: 1,
-               countrycodes: "in",
-              limit: 10,
+              countrycodes: "in",
+              dedupe: 0,
+              limit: 20,
             },
             headers: {
               "Accept-Language": "en",
